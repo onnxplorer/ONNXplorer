@@ -14,6 +14,8 @@ public class Renderer : MonoBehaviour {
 
     public void recompute() {
         if (dirty.Count > 0) {
+            var t = new Timing().push("Renderer recompute");
+            t.log("Renderer recomputing " + dirty.Count + " elements");
             Vector3[] vs = lineMesh.vertices;
             Color[] cs = lineMesh.colors;
             foreach (LineRef lr in dirty) {
@@ -23,6 +25,11 @@ public class Renderer : MonoBehaviour {
                 cs[lr._idx+1] = lr.cb;
             }
             dirty.Clear();
+            lineMesh.vertices = vs; // I was setting "= lineMesh.vertices" and it wasn't working; why not???  Does it duplicate the whole array or something???
+            lineMesh.colors = cs;
+            lineMesh.RecalculateBounds();
+            //meshFilter.sharedMesh = lineMesh;
+            t.pop();
         }
     }
 
@@ -53,9 +60,9 @@ public class Renderer : MonoBehaviour {
     }
 
     private void Update() {
-        //if (dirty.Count > 0) {
-        //    recompute();
-        //}
+        if (dirty.Count > 0) {
+            recompute();
+        }
     }
 
     private T[] AddToArray<T>(T[] array, params T[] elements) {
@@ -184,5 +191,56 @@ public class Renderer : MonoBehaviour {
         // Notify Unity that the mesh has been updated
         lineMesh.RecalculateBounds();
         //lineMesh.RecalculateNormals();
+    }
+
+    public LineRef[] addLines(LineRef[] lines) { //RAINY Make better, like BetterLines
+        Vector3[] newVertices = lineMesh.vertices;
+        Color[] newColors = lineMesh.colors;
+
+        // Add the new vertices and colors to the arrays
+        int newIndex = newVertices.Length;
+        {
+            Vector3[] newVertexArray = new Vector3[newVertices.Length + lines.Length*2];
+            Color[] newColorArray = new Color[newColors.Length + lines.Length * 2];
+            newVertices.CopyTo(newVertexArray, 0);
+            newColors.CopyTo(newColorArray, 0);
+            for (int i = 0; i < lines.Length; i++) {
+                newVertexArray[newVertices.Length + 2 * i + 0] = lines[i].va;
+                newVertexArray[newVertices.Length + 2 * i + 1] = lines[i].vb;
+                newColorArray[newColors.Length + 2 * i + 0] = lines[i].ca;
+                newColorArray[newColors.Length + 2 * i + 1] = lines[i].cb;
+            }
+            newVertices = newVertexArray;
+            newColors = newColorArray;
+        }
+
+        // Update the mesh with the new vertices and colors
+        lineMesh.vertices = newVertices;
+        lineMesh.colors = newColors;
+
+        // Update the indices to include the new line segment
+        int[] newIndices = lineMesh.GetIndices(0); //THINK Submesh?
+        int[] additionalIndices = new int[lines.Length*2];
+        for (int i = 0; i < lines.Length; i++) {
+            additionalIndices[2*i+0] = newIndex + 2*i+0;
+            additionalIndices[2*i+1] = newIndex + 2*i+1;
+            lines[i]._idx = newIndex + 2*i+0;
+            lines[i]._flagDirty = flagDirty;
+        }
+        newIndices = AddToArray(newIndices, additionalIndices);
+        lineMesh.SetIndices(newIndices, MeshTopology.Lines, 0);
+
+        // Notify Unity that the mesh has been updated
+        lineMesh.RecalculateBounds();
+        //lineMesh.RecalculateNormals();
+
+        return lines;
+    }
+
+    /**
+     * Starts a LineBatch on this Renderer.  Equivalent to LineBatch.start(renderer).
+     */
+    public LineBatch startLines() {
+        return LineBatch.start(this);
     }
 }

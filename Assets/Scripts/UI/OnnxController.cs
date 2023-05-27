@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class OnnxController : MonoBehaviour {
-    public bool TEST_LINES_CR = false;
+    public bool TEST_LINES_CR = true;
     public bool TEST_STRESS = false;
-    public bool TEST_LINES_UPDATE = true;
+    public bool TEST_LINES_UPDATE = false;
+    public bool TEST_LINES_UPDATE_1N = false;
 
     public Renderer renderer;
 
@@ -24,9 +25,9 @@ public class OnnxController : MonoBehaviour {
         Debug.Log("Add lines done!");
     }
 
-    private IEnumerator testUpdateRendererEvery10seconds() {
+    private IEnumerator testUpdateRendererEveryNseconds(float n) {
         while (true) {
-            yield return new WaitForSeconds(10f);
+            yield return new WaitForSeconds(n);
             Debug.Log("Triggering recompute");
             renderer.recompute();
         }
@@ -44,14 +45,43 @@ public class OnnxController : MonoBehaviour {
             lrs[i] = renderer.addLine(va, ca, vb, cb);
         }
         Debug.Log("Lines added");
-        StartCoroutine(testUpdateRendererEvery10seconds());
+        StartCoroutine(testUpdateRendererEveryNseconds(1f));
         while (true) {
-            yield return new WaitForSeconds(0.5f);
+            yield return new WaitForSeconds(0.2f);
             for (int i = 0; i < N; i++) {
-                lrs[i].va += new Vector3(0f, 0.01f, 0f);
-                lrs[i].vb += new Vector3(0f, 0.01f, 0f);
+                lrs[i].va += new Vector3(0.05f, 0.01f, 0f);
+                lrs[i].vb += new Vector3(0.05f, 0.01f, 0f);
             }
         }
+    }
+
+    private IEnumerator testUpdateOneOfManyLines() {
+        int N = 1_000_000;
+        var t = new Timing().push("OnnxController testUpdateOneOfManyLines");
+        t.log("N = " + N);
+        LineRef[] lrs = new LineRef[N];
+        var batch = renderer.startLines(); //CHECK This could over-allocate memory
+        for (int i = 0; i < N; i++) {
+            Vector3 va = new Vector3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), Random.Range(-1f, 1f));
+            Vector3 vb = new Vector3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), Random.Range(-1f, 1f));
+            Color ca = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
+            Color cb = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
+
+            lrs[i] = batch.addLine(va, ca, vb, cb);
+        }
+        batch.stop();
+        t.log(N + " lines added");
+        while (true) {
+            yield return new WaitForSeconds(10f);
+            t.push("updating");
+            int i = Random.Range(0, N);
+            lrs[i].va += new Vector3(0.05f, 0.01f, 0f);
+            lrs[i].vb += new Vector3(0.05f, 0.01f, 0f);
+            lrs[i].ca = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
+            lrs[i].cb = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
+            t.pop();
+        }
+        t.pop();
     }
 
     public bool RAND_COLOR = false;
@@ -69,6 +99,12 @@ public class OnnxController : MonoBehaviour {
         if (TEST_LINES_UPDATE) {
             t.push("lines update");
             StartCoroutine(testUpdateLines());
+            t.pop();
+        }
+
+        if (TEST_LINES_UPDATE_1N) {
+            t.push("lines 1-in-N update");
+            StartCoroutine(testUpdateOneOfManyLines());
             t.pop();
         }
 
