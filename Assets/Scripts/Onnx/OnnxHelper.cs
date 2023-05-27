@@ -14,7 +14,12 @@ public class OnnxHelper {
             tensors[input.Name] = TensorInfo.fromValueInfoProto(input, true);
         }
 
+        foreach (var init in model.Graph.Initializer) {
+            tensors[init.Name] = TensorInfo.fromTensorProto(init);
+        }
+
         foreach (var op in model.Graph.Node) {
+            Debug.Log($"Processing operator {op.Name}");
             for (int i = 0; i < op.Output.Count; i++) {
                 tensors[op.Output[i]] = TensorInfo.fromOperatorOutput(op, i, tensors);
             }
