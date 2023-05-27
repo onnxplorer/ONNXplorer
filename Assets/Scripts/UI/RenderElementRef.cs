@@ -6,6 +6,10 @@ using System.Threading.Tasks;
 using UnityEngine;
 
 public class RenderElementRef {
+    public static void _flagDirtyNOOP(RenderElementRef r) {
+    }
+
+
     public delegate void FlagDirty(RenderElementRef line);
     public FlagDirty _flagDirty;
     public int _idx; //THINK Maybe private, or read-only
