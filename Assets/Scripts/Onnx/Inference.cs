@@ -33,7 +33,10 @@ public class Inference : MonoBehaviour
             }
         }
 
-        OnnxHelper.CreateModelProto(modelPath);
+        var dim_params = new Dictionary<string, long>();
+        dim_params.Add("batch_size", 1);
+
+        OnnxHelper.CreateModelProto(modelPath, dim_params);
     }
 
     List<string> LoadLabels() {

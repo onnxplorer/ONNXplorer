@@ -5,13 +5,14 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class OnnxHelper {
-    public static void CreateModelProto(string modelPath) {
+    public static void CreateModelProto(string modelPath, Dictionary<string,long> dim_params) {
         var model = ModelProto.Parser.ParseFrom(File.OpenRead(modelPath));
         var tensors = new Dictionary<string, TensorInfo>();
+
         Debug.Log("ModelProto created");
 
         foreach (var input in model.Graph.Input) {
-            tensors[input.Name] = TensorInfo.fromValueInfoProto(input, true);
+            tensors[input.Name] = TensorInfo.fromValueInfoProto(input, true, dim_params);
         }
 
         foreach (var init in model.Graph.Initializer) {
