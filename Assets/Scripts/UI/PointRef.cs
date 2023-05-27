@@ -26,6 +26,13 @@ public class PointRef : RenderElementRef {
         }
     }
 
+    public PointRef() : this(Vector3.zero, Color.white) {}
+
+    public PointRef(Vector3 v, Color c) : base(_flagDirtyNOOP, -1) {
+        this.v = v;
+        this.c = c;
+    }
+
     public PointRef(FlagDirty flagDirty, int idx, Vector3 v, Color c) : base(flagDirty, idx) {
         this.v = v;
         this.c = c;

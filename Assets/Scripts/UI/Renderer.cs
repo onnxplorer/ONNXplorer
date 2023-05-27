@@ -66,6 +66,7 @@ public class Renderer : MonoBehaviour {
     }
 
     //THINK Return tokens, to delete/overwrite elements later?  Return an actual object to be changed?
+    /*
     //DUMMY Turns out this method of doing points doesn't work too well; too small and you can't see it, too large and it's not a point, and either way it changes apparent height based on your closeness
     public LineRef addPoint(Vector3 pos, Color color) {
         return addLine(pos, color, new Vector3(pos.x, pos.y+0.001f, pos.z), color);
@@ -74,6 +75,8 @@ public class Renderer : MonoBehaviour {
     public LineRef addPoint(Vector3 pos) {
         return addLine(pos, Color.white, new Vector3(pos.x, pos.y+0.001f, pos.z), Color.white);
     }
+    //DUMMY Also add from PointRef
+    */
 
     public LineRef addLine(Vector3 pos1, Vector3 pos2) {
         return addLine(pos1, Color.white, pos2, Color.white);
@@ -81,6 +84,44 @@ public class Renderer : MonoBehaviour {
 
     public LineRef addLine(Vector3 pos1, Vector3 pos2, Color color) {
         return addLine(pos1, color, pos2, color);
+    }
+    
+    //CHECK Refactor this to be less messy
+
+    /// <summary>
+    /// Uses `lineRef`'s properties to add the line, then overwrites `lineRef`'s idx and flagDirty function
+    /// </summary>
+    /// <param name="lineRef"></param>
+    /// <returns></returns>
+    public LineRef addLine(LineRef lineRef) {
+        // Example of updating the vectors and colors dynamically
+
+        // Add a new line segment
+        Vector3[] newVertices = lineMesh.vertices;
+        Color[] newColors = lineMesh.colors;
+
+        // Add the new vertices and colors to the arrays
+        int newIndex = newVertices.Length;
+        newVertices = AddToArray(newVertices, lineRef.va, lineRef.vb);
+        newColors = AddToArray(newColors, lineRef.ca, lineRef.cb);
+
+        // Update the mesh with the new vertices and colors
+        lineMesh.vertices = newVertices;
+        lineMesh.colors = newColors;
+
+        // Update the indices to include the new line segment
+        int[] newIndices = lineMesh.GetIndices(0);
+        newIndices = AddToArray(newIndices, newIndex, newIndex + 1);
+        lineMesh.SetIndices(newIndices, MeshTopology.Lines, 0);
+
+        // Notify Unity that the mesh has been updated
+        lineMesh.RecalculateBounds();
+        //lineMesh.RecalculateNormals();
+
+        lineRef._flagDirty = flagDirty;
+        lineRef._idx = newIndex;
+
+        return lineRef;
     }
 
     public LineRef addLine(Vector3 pos1, Color color1, Vector3 pos2, Color color2) {

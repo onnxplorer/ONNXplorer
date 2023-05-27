@@ -42,6 +42,15 @@ public class LineRef : RenderElementRef {
         }
     }
 
+    public LineRef() : this(Vector3.zero, Color.white, Vector3.zero, Color.white) {}
+
+    public LineRef(Vector3 va, Color ca, Vector3 vb, Color cb) : base(_flagDirtyNOOP, -1) {
+        this.va = va;
+        this.ca = ca;
+        this.vb = vb;
+        this.cb = cb;
+    }
+
     public LineRef(FlagDirty flagDirty, int idx, Vector3 va, Color ca, Vector3 vb, Color cb) : base(flagDirty, idx) {
         this.va = va;
         this.ca = ca;
