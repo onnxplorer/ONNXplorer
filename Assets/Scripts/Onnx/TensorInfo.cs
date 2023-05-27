@@ -357,8 +357,39 @@ public class TensorInfo {
         if (j != data.Rank) {
             Debug.LogError("Some kind of dimension mismatch in Unsqueeze");
         }
+        if (data.Rank > 4) {
+            throw new NotImplementedException("Unsqueeze for rank > 4");
+        }
         var result = new TensorInfo();
         result.d = d;
+
+        if (data.is_constant) {
+            var scalars = CreateScalars(result.d);
+            for (var x = 0; x < data.GetDim(0); x++) {
+                for (var y = 0; y < data.GetDim(1); y++) {
+                    for (var z = 0; z < data.GetDim(2); z++) {
+                        for (var w = 0; w < data.GetDim(3); w++) {
+                            var src = new long[]{x,y,z,w};
+                            var dest = new long[4];
+                            for (var i = 0; i < d.Length; i++) {
+                                if (Array.IndexOf(axes, (long)i) != -1) {
+                                    dest[i] = 0;
+                                } else {
+                                    dest[i] = src[j];
+                                    j++;
+                                }
+                            }
+                            scalars[dest[0], dest[1], dest[2], dest[3]] = data.scalars[x,y,z,w];
+                        }
+                    }
+                }
+            }
+            result.scalars = scalars;
+            result.is_constant = true;
+        } else {
+            Debug.LogError($"Unsqueeze: non-constant input: {data.op_name}");
+        }
+
         return result;
     }
 
