@@ -5,7 +5,8 @@ public class Renderer : MonoBehaviour {
     private MeshFilter meshFilter;
     private Mesh lineMesh;
 
-    private void Start() {
+    private void Awake() {
+        Debug.Log("-->Renderer awake");
         // Create a new empty game object
         GameObject lineObject = new GameObject("LineObject");
         lineObject.transform.parent = this.transform;
@@ -21,30 +22,13 @@ public class Renderer : MonoBehaviour {
         lineMesh = new Mesh();
         lineMesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32; //WARNING Note that this does not work on all systems, apparently...but probably most of them.
 
-        lineMesh.vertices = new Vector3[]
-        {
-            new Vector3(0f, 0f, 0f),    // Start point of line 1
-            new Vector3(1f, 1f, 0f),    // End point of line 1
-
-            new Vector3(-1f, 0f, 0f),   // Start point of line 2
-            new Vector3(-2f, 2f, 0f),   // End point of line 2
-
-            // Define additional lines as needed
-        };
-        lineMesh.colors = new Color[]
-        {
-            Color.red,   // Color for line 1
-            Color.green, // Color for line 1
-
-            Color.blue,  // Color for line 2
-            Color.yellow // Color for line 2
-
-            // Define additional colors as needed
-        };
-        lineMesh.SetIndices(new int[] { 0, 1, 2, 3 }, MeshTopology.Lines, 0);
+        lineMesh.vertices = new Vector3[0];
+        lineMesh.colors = new Color[0];
+        lineMesh.SetIndices(new int[0], MeshTopology.Lines, 0);
 
         // Assign the initial mesh to the mesh filter
         meshFilter.mesh = lineMesh;
+        Debug.Log("<--Renderer awake");
     }
 
     private T[] AddToArray<T>(T[] array, params T[] elements) {
@@ -53,8 +37,6 @@ public class Renderer : MonoBehaviour {
         elements.CopyTo(newArray, array.Length);
         return newArray;
     }
-
-
 
     //THINK Return tokens, to delete/overwrite elements later?  Return an actual object to be changed?
     //DUMMY Turns out this method of doing points doesn't work too well; too small and you can't see it, too large and it's not a point, and either way it changes apparent height based on your closeness
@@ -97,6 +79,36 @@ public class Renderer : MonoBehaviour {
         // Update the indices to include the new line segment
         int[] newIndices = lineMesh.GetIndices(0);
         newIndices = AddToArray(newIndices, newIndex, newIndex + 1);
+        lineMesh.SetIndices(newIndices, MeshTopology.Lines, 0);
+
+        // Notify Unity that the mesh has been updated
+        lineMesh.RecalculateBounds();
+        //lineMesh.RecalculateNormals();
+    }
+
+    public void addLines(Vector3[] vertices, Color[] colors) { //RAINY Make better, like BetterLines
+        // Example of updating the vectors and colors dynamically
+
+        // Add a new line segment
+        Vector3[] newVertices = lineMesh.vertices;
+        Color[] newColors = lineMesh.colors;
+
+        // Add the new vertices and colors to the arrays
+        int newIndex = newVertices.Length;
+        newVertices = AddToArray(newVertices, vertices);
+        newColors = AddToArray(newColors, colors);
+
+        // Update the mesh with the new vertices and colors
+        lineMesh.vertices = newVertices;
+        lineMesh.colors = newColors;
+
+        // Update the indices to include the new line segment
+        int[] newIndices = lineMesh.GetIndices(0); //THINK Submesh?
+        int[] additionalIndices = new int[vertices.Length];
+        for (int i = 0; i < vertices.Length; i++) {
+            additionalIndices[i] = newIndex + i;
+        }
+        newIndices = AddToArray(newIndices, additionalIndices);
         lineMesh.SetIndices(newIndices, MeshTopology.Lines, 0);
 
         // Notify Unity that the mesh has been updated
