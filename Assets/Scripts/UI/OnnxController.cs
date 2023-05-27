@@ -7,6 +7,7 @@ public class OnnxController : MonoBehaviour {
     public bool TEST_STRESS = false;
     public bool TEST_LINES_UPDATE = false;
     public bool TEST_LINES_UPDATE_1N = false;
+    public bool TEST_POINTS_UPDATE_1N = false;
 
     public Renderer renderer;
 
@@ -56,7 +57,7 @@ public class OnnxController : MonoBehaviour {
     }
 
     private IEnumerator testUpdateOneOfManyLines() {
-        int N = 1_000_000;
+        int N = 10;
         var t = new Timing().push("OnnxController testUpdateOneOfManyLines");
         t.log("N = " + N);
         LineRef[] lrs = new LineRef[N];
@@ -84,6 +85,33 @@ public class OnnxController : MonoBehaviour {
         t.pop();
     }
 
+    private IEnumerator testUpdateOneOfManyPoints() {
+        int N = 10;
+        var t = new Timing().push("OnnxController testUpdateOneOfManyPoints");
+        t.log("N = " + N);
+        PointRef[] prs = new PointRef[N];
+        //var batch = renderer.startLines(); //CHECK This could over-allocate memory
+        for (int i = 0; i < N; i++) {
+            Vector3 v = new Vector3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), Random.Range(-1f, 1f));
+            Color c = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
+            float s = Random.Range(0f, 0.1f);
+
+            prs[i] = renderer.addPoint(v, c, s);
+        }
+        //batch.stop();
+        t.log(N + " points added");
+        while (true) {
+            yield return new WaitForSeconds(10f);
+            t.push("updating");
+            int i = Random.Range(0, N);
+            prs[i].v += new Vector3(0.05f, 0.01f, 0f);
+            prs[i].c = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
+            prs[i].size = Random.Range(0f, 0.1f);
+            t.pop();
+        }
+        t.pop();
+    }
+
     public bool RAND_COLOR = false;
 
     // Start is called before the first frame update
@@ -105,6 +133,12 @@ public class OnnxController : MonoBehaviour {
         if (TEST_LINES_UPDATE_1N) {
             t.push("lines 1-in-N update");
             StartCoroutine(testUpdateOneOfManyLines());
+            t.pop();
+        }
+
+        if (TEST_POINTS_UPDATE_1N) {
+            t.push("points 1-in-N update");
+            StartCoroutine(testUpdateOneOfManyPoints());
             t.pop();
         }
 

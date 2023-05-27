@@ -18,11 +18,55 @@ public class Renderer : MonoBehaviour {
             t.log("Renderer recomputing " + dirty.Count + " elements");
             Vector3[] vs = lineMesh.vertices;
             Color[] cs = lineMesh.colors;
-            foreach (LineRef lr in dirty) {
-                vs[lr._idx] = lr.va;
-                vs[lr._idx+1] = lr.vb;
-                cs[lr._idx] = lr.ca;
-                cs[lr._idx+1] = lr.cb;
+            foreach (RenderElementRef r in dirty) {
+                if (r is LineRef) {
+                    LineRef lr = (LineRef)r;
+                    vs[lr._idx] = lr.va;
+                    vs[lr._idx + 1] = lr.vb;
+                    cs[lr._idx] = lr.ca;
+                    cs[lr._idx + 1] = lr.cb;
+                } else if (r is PointRef) { //CHECK This is pretty terrible
+                    PointRef pr = (PointRef)r;
+                    float hs = pr.size / 2;
+                    var xyz = new Vector3(pr.v.x - hs, pr.v.y - hs, pr.v.z - hs);
+                    var xyZ = new Vector3(pr.v.x - hs, pr.v.y - hs, pr.v.z + hs);
+                    var xYz = new Vector3(pr.v.x - hs, pr.v.y + hs, pr.v.z - hs);
+                    var xYZ = new Vector3(pr.v.x - hs, pr.v.y + hs, pr.v.z + hs);
+                    var Xyz = new Vector3(pr.v.x + hs, pr.v.y - hs, pr.v.z - hs);
+                    var XyZ = new Vector3(pr.v.x + hs, pr.v.y - hs, pr.v.z + hs);
+                    var XYZ = new Vector3(pr.v.x + hs, pr.v.y + hs, pr.v.z + hs);
+                    var XYz = new Vector3(pr.v.x + hs, pr.v.y + hs, pr.v.z - hs);
+
+                    for (int i = 0; i < 24; i++) {
+                        cs[pr._idx + i] = pr.c;
+                    }
+
+                    int j = 0;
+                    vs[pr._idx + j] = xyz; j++;
+                    vs[pr._idx + j] = xYz; j++;
+                    vs[pr._idx + j] = xyz; j++;
+                    vs[pr._idx + j] = xyZ; j++;
+                    vs[pr._idx + j] = xYZ; j++;
+                    vs[pr._idx + j] = xYz; j++;
+                    vs[pr._idx + j] = xYZ; j++;
+                    vs[pr._idx + j] = xyZ; j++;
+                    vs[pr._idx + j] = Xyz; j++;
+                    vs[pr._idx + j] = XYz; j++;
+                    vs[pr._idx + j] = Xyz; j++;
+                    vs[pr._idx + j] = XyZ; j++;
+                    vs[pr._idx + j] = XYZ; j++;
+                    vs[pr._idx + j] = XYz; j++;
+                    vs[pr._idx + j] = XYZ; j++;
+                    vs[pr._idx + j] = XyZ; j++;
+                    vs[pr._idx + j] = xyz; j++;
+                    vs[pr._idx + j] = Xyz; j++;
+                    vs[pr._idx + j] = xYz; j++;
+                    vs[pr._idx + j] = XYz; j++;
+                    vs[pr._idx + j] = xyZ; j++;
+                    vs[pr._idx + j] = XyZ; j++;
+                    vs[pr._idx + j] = xYZ; j++;
+                    vs[pr._idx + j] = XYZ; j++;
+                }
             }
             dirty.Clear();
             lineMesh.vertices = vs; // I was setting "= lineMesh.vertices" and it wasn't working; why not???  Does it duplicate the whole array or something???
@@ -85,6 +129,74 @@ public class Renderer : MonoBehaviour {
     //DUMMY Also add from PointRef
     */
 
+    public PointRef addPoint(Vector3 pos) {
+        return addPoint(pos, Color.white, PointRef.DEFAULT_SIZE);
+    }
+
+    public PointRef addPoint(Vector3 pos, Color color) {
+        return addPoint(pos, color, PointRef.DEFAULT_SIZE);
+    }
+
+    //DUMMY Currently just wireframes a cube - make more cubelike, or make proper "point" rendering
+    public PointRef addPoint(Vector3 pos, Color color, float size) {
+        Vector3[] newVertices = lineMesh.vertices;
+        Color[] newColors = lineMesh.colors;
+        int newIndex = newVertices.Length;
+        float hs = size / 2;
+        var xyz = new Vector3(pos.x - hs, pos.y - hs, pos.z - hs);
+        var xyZ = new Vector3(pos.x - hs, pos.y - hs, pos.z + hs);
+        var xYz = new Vector3(pos.x - hs, pos.y + hs, pos.z - hs);
+        var xYZ = new Vector3(pos.x - hs, pos.y + hs, pos.z + hs);
+        var Xyz = new Vector3(pos.x + hs, pos.y - hs, pos.z - hs);
+        var XyZ = new Vector3(pos.x + hs, pos.y - hs, pos.z + hs);
+        var XYz = new Vector3(pos.x + hs, pos.y + hs, pos.z - hs);
+        var XYZ = new Vector3(pos.x + hs, pos.y + hs, pos.z + hs);
+        newVertices = AddToArray(newVertices,
+            xyz, xYz,
+            xyz, xyZ,
+            xYZ, xYz,
+            xYZ, xyZ,
+            Xyz, XYz,
+            Xyz, XyZ,
+            XYZ, XYz,
+            XYZ, XyZ,
+            xyz, Xyz,
+            xYz, XYz,
+            xyZ, XyZ,
+            xYZ, XYZ
+            );
+        newColors = AddToArray(newColors,
+            color, color,
+            color, color,
+            color, color,
+            color, color,
+            color, color,
+            color, color,
+            color, color,
+            color, color,
+            color, color,
+            color, color,
+            color, color,
+            color, color
+            );
+
+        lineMesh.vertices = newVertices;
+        lineMesh.colors = newColors;
+
+        int[] newIndices = lineMesh.GetIndices(0);
+        int[] additionalIndices = new int[24];
+        for (int i = 0; i < additionalIndices.Length; i++) {
+            additionalIndices[i] = newIndex + i;
+        }
+        newIndices = AddToArray(newIndices, additionalIndices);
+        lineMesh.SetIndices(newIndices, MeshTopology.Lines, 0);
+
+        lineMesh.RecalculateBounds();
+        //lineMesh.RecalculateNormals();
+
+        return new PointRef(flagDirty, newIndex, pos, color, size);
+    }
+
     public LineRef addLine(Vector3 pos1, Vector3 pos2) {
         return addLine(pos1, Color.white, pos2, Color.white);
     }
@@ -132,31 +244,19 @@ public class Renderer : MonoBehaviour {
     }
 
     public LineRef addLine(Vector3 pos1, Color color1, Vector3 pos2, Color color2) {
-        // Example of updating the vectors and colors dynamically
-
-        // Add a new line segment
         Vector3[] newVertices = lineMesh.vertices;
         Color[] newColors = lineMesh.colors;
-
-        // Define the start and end points of the new line segment
-        Vector3 startPoint = pos1;
-        Vector3 endPoint = pos2;
-
-        // Add the new vertices and colors to the arrays
         int newIndex = newVertices.Length;
-        newVertices = AddToArray(newVertices, startPoint, endPoint);
+        newVertices = AddToArray(newVertices, pos1, pos2);
         newColors = AddToArray(newColors, color1, color2);
 
-        // Update the mesh with the new vertices and colors
         lineMesh.vertices = newVertices;
         lineMesh.colors = newColors;
 
-        // Update the indices to include the new line segment
         int[] newIndices = lineMesh.GetIndices(0);
         newIndices = AddToArray(newIndices, newIndex, newIndex + 1);
         lineMesh.SetIndices(newIndices, MeshTopology.Lines, 0);
 
-        // Notify Unity that the mesh has been updated
         lineMesh.RecalculateBounds();
         //lineMesh.RecalculateNormals();
 

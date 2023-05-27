@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 
 public class PointRef : RenderElementRef {
-    public int idx; //THINK Maybe private, or read-only
+    public const float DEFAULT_SIZE = 0.01f;
 
     private Vector3 _v;
     public Vector3 v {
@@ -26,6 +26,15 @@ public class PointRef : RenderElementRef {
         }
     }
 
+    private float _size = DEFAULT_SIZE;
+    public float size {
+        get => _size;
+        set {
+            _size = value;
+            _flagDirty(this);
+        }
+    }
+
     public PointRef() : this(Vector3.zero, Color.white) {}
 
     public PointRef(Vector3 v, Color c) : base(_flagDirtyNOOP, -1) {
@@ -33,8 +42,9 @@ public class PointRef : RenderElementRef {
         this.c = c;
     }
 
-    public PointRef(FlagDirty flagDirty, int idx, Vector3 v, Color c) : base(flagDirty, idx) {
+    public PointRef(FlagDirty flagDirty, int idx, Vector3 v, Color c, float size) : base(flagDirty, idx) {
         this.v = v;
         this.c = c;
+        this.size = size;
     }
 }
