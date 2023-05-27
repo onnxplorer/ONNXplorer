@@ -6,10 +6,10 @@ public class Renderer : MonoBehaviour {
     private MeshRenderer meshRenderer;
     private MeshFilter meshFilter;
     private Mesh lineMesh;
-    private HashSet<LineRef> dirty = new HashSet<LineRef>();
+    private HashSet<RenderElementRef> dirty = new HashSet<RenderElementRef>();
 
-    private void flagDirty(LineRef lineRef) {
-        dirty.Add(lineRef);
+    private void flagDirty(RenderElementRef r) {
+        dirty.Add(r);
     }
 
     public void recompute() {
@@ -17,10 +17,10 @@ public class Renderer : MonoBehaviour {
             Vector3[] vs = lineMesh.vertices;
             Color[] cs = lineMesh.colors;
             foreach (LineRef lr in dirty) {
-                vs[lr.idx] = lr.va;
-                vs[lr.idx+1] = lr.vb;
-                cs[lr.idx] = lr.ca;
-                cs[lr.idx+1] = lr.cb;
+                vs[lr._idx] = lr.va;
+                vs[lr._idx+1] = lr.vb;
+                cs[lr._idx] = lr.ca;
+                cs[lr._idx+1] = lr.cb;
             }
             dirty.Clear();
         }
