@@ -13,7 +13,7 @@ public class Inference : MonoBehaviour
     void Start()
     {
         Debug.Log("Start function called");
-        string modelPath = "models/mobilenetv2-12-int8/mobilenetv2-12-int8.onnx";
+        string modelPath = "models/mobilenetv2-10.onnx";
         var session = new InferenceSession(modelPath);
         Debug.Log("Session created");
         var labels = LoadLabels();
@@ -33,7 +33,7 @@ public class Inference : MonoBehaviour
             }
         }
 
-        OnnxHelper.CreateModelProto();
+        OnnxHelper.CreateModelProto(modelPath);
     }
 
     List<string> LoadLabels() {

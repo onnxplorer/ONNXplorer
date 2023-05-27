@@ -4,8 +4,12 @@ using System.IO;
 using UnityEngine;
 
 public class OnnxHelper {
-    public static void CreateModelProto() {
-        var model_proto = ModelProto.Parser.ParseFrom(File.OpenRead("models/mobilenetv2-12-int8/mobilenetv2-12-int8.onnx"));
+    public static void CreateModelProto(string modelPath) {
+        var model = ModelProto.Parser.ParseFrom(File.OpenRead(modelPath));
         Debug.Log("ModelProto created");
+        foreach (var valueinfo in model.Graph.ValueInfo) {
+            Debug.Log(valueinfo.Name);
+        }
+        Debug.Log("That's it for values");
     }
 }
