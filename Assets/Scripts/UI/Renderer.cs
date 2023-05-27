@@ -197,6 +197,70 @@ public class Renderer : MonoBehaviour {
         return new PointRef(flagDirty, newIndex, pos, color, size);
     }
 
+    public PointRef addPoint(PointRef pointRef) {
+        Vector3[] newVertices = lineMesh.vertices;
+        Color[] newColors = lineMesh.colors;
+        int newIndex = newVertices.Length;
+        var pos = pointRef.v;
+        var color = pointRef.c;
+        float hs = pointRef.size / 2;
+        var xyz = new Vector3(pos.x - hs, pos.y - hs, pos.z - hs);
+        var xyZ = new Vector3(pos.x - hs, pos.y - hs, pos.z + hs);
+        var xYz = new Vector3(pos.x - hs, pos.y + hs, pos.z - hs);
+        var xYZ = new Vector3(pos.x - hs, pos.y + hs, pos.z + hs);
+        var Xyz = new Vector3(pos.x + hs, pos.y - hs, pos.z - hs);
+        var XyZ = new Vector3(pos.x + hs, pos.y - hs, pos.z + hs);
+        var XYz = new Vector3(pos.x + hs, pos.y + hs, pos.z - hs);
+        var XYZ = new Vector3(pos.x + hs, pos.y + hs, pos.z + hs);
+        newVertices = AddToArray(newVertices,
+            xyz, xYz,
+            xyz, xyZ,
+            xYZ, xYz,
+            xYZ, xyZ,
+            Xyz, XYz,
+            Xyz, XyZ,
+            XYZ, XYz,
+            XYZ, XyZ,
+            xyz, Xyz,
+            xYz, XYz,
+            xyZ, XyZ,
+            xYZ, XYZ
+            );
+        newColors = AddToArray(newColors,
+            color, color,
+            color, color,
+            color, color,
+            color, color,
+            color, color,
+            color, color,
+            color, color,
+            color, color,
+            color, color,
+            color, color,
+            color, color,
+            color, color
+            );
+
+        lineMesh.vertices = newVertices;
+        lineMesh.colors = newColors;
+
+        int[] newIndices = lineMesh.GetIndices(0);
+        int[] additionalIndices = new int[24];
+        for (int i = 0; i < additionalIndices.Length; i++) {
+            additionalIndices[i] = newIndex + i;
+        }
+        newIndices = AddToArray(newIndices, additionalIndices);
+        lineMesh.SetIndices(newIndices, MeshTopology.Lines, 0);
+
+        lineMesh.RecalculateBounds();
+        //lineMesh.RecalculateNormals();
+
+        pointRef._flagDirty = flagDirty;
+        pointRef._idx = newIndex;
+
+        return pointRef;
+    }
+
     public LineRef addLine(Vector3 pos1, Vector3 pos2) {
         return addLine(pos1, Color.white, pos2, Color.white);
     }

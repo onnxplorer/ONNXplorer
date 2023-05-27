@@ -8,6 +8,7 @@ public class OnnxController : MonoBehaviour {
     public bool TEST_LINES_UPDATE = false;
     public bool TEST_LINES_UPDATE_1N = false;
     public bool TEST_POINTS_UPDATE_1N = false;
+    public bool TEST_NET = false;
 
     public Renderer renderer;
 
@@ -112,35 +113,49 @@ public class OnnxController : MonoBehaviour {
         t.pop();
     }
 
+    private IEnumerator testUpdateNet() {
+        int N = 10;
+        int C = 3;
+        var t = new Timing().push("OnnxController testUpdateNet");
+        t.log("N = " + N + " ; C = " + C);
+        Network net = new Network();
+        //DUMMY Add batch point processing
+        //var batch = renderer.startLines(); //CHECK This could over-allocate memory
+        for (int i = 0; i < N; i++) {
+            Vector3 v = new Vector3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), Random.Range(-1f, 1f));
+            Color c = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
+            float s = Random.Range(0f, 0.1f);
+
+            float weight = Random.Range(0f, 1f);
+            float activation = Random.Range(0f, 1f);
+
+            Neuron n = new Neuron(new PointRef(v, c, s), weight, activation);
+            net.neurons.Add(n);
+        }
+        
+        foreach (Neuron n in net.neurons) {
+            renderer.addPoint(n.point);
+        }
+
+        //batch.stop();
+        t.log(N + " neurons added");
+        while (true) {
+            yield return new WaitForSeconds(0.2f);
+            t.push("updating");
+            int i = Random.Range(0, N);
+            net.neurons[i].point.v += new Vector3(Random.Range(-0.1f, 0.1f), Random.Range(-0.1f, 0.1f), Random.Range(-0.1f, 0.1f));
+            net.neurons[i].point.c = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
+            net.neurons[i].point.size = Random.Range(0f, 0.1f);
+            t.pop();
+        }
+        t.pop();
+    }
+
     public bool RAND_COLOR = false;
 
     // Start is called before the first frame update
     void Start() {
         var t = new Timing().push("OnnxController start");
-
-        if (TEST_LINES_CR) {
-            t.push("lines coroutine");
-            StartCoroutine(testAddLines());
-            t.pop();
-        }
-
-        if (TEST_LINES_UPDATE) {
-            t.push("lines update");
-            StartCoroutine(testUpdateLines());
-            t.pop();
-        }
-
-        if (TEST_LINES_UPDATE_1N) {
-            t.push("lines 1-in-N update");
-            StartCoroutine(testUpdateOneOfManyLines());
-            t.pop();
-        }
-
-        if (TEST_POINTS_UPDATE_1N) {
-            t.push("points 1-in-N update");
-            StartCoroutine(testUpdateOneOfManyPoints());
-            t.pop();
-        }
 
         if (TEST_STRESS) {
             t.push("stress");
@@ -195,6 +210,36 @@ public class OnnxController : MonoBehaviour {
                 renderer.addLines(vertices, colors);
                 t.pop();
             }
+        }
+
+        if (TEST_LINES_CR) {
+            t.push("lines coroutine");
+            StartCoroutine(testAddLines());
+            t.pop();
+        }
+
+        if (TEST_LINES_UPDATE) {
+            t.push("lines update");
+            StartCoroutine(testUpdateLines());
+            t.pop();
+        }
+
+        if (TEST_LINES_UPDATE_1N) {
+            t.push("lines 1-in-N update");
+            StartCoroutine(testUpdateOneOfManyLines());
+            t.pop();
+        }
+
+        if (TEST_POINTS_UPDATE_1N) {
+            t.push("points 1-in-N update");
+            StartCoroutine(testUpdateOneOfManyPoints());
+            t.pop();
+        }
+
+        if (TEST_NET) {
+            t.push("net");
+            StartCoroutine(testUpdateNet());
+            t.pop();
         }
 
         t.pop();
