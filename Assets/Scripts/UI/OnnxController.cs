@@ -132,9 +132,25 @@ public class OnnxController : MonoBehaviour {
             Neuron n = new Neuron(new PointRef(v, c, s), weight, activation);
             net.neurons.Add(n);
         }
-        
+        foreach (Neuron source in net.neurons) {
+            for (int i = 0; i < C; i++) {
+                var target = net.neurons[Random.Range(0, net.neurons.Count)];
+                Color c1 = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
+                Color c2 = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
+                float weight = Random.Range(0f, 1f);
+                float activation = Random.Range(0f, 1f);
+                //DUMMY Feels like you should be able to specify the color of a connection without duplicating your point code
+                Connection conn = new Connection(source, target, new LineRef(Vector3.zero, c1, Vector3.zero, c2), weight, activation);
+                net.addConnection(conn);
+            }
+        }
+
+        //DUMMY Batch, once relevant
         foreach (Neuron n in net.neurons) {
             renderer.addPoint(n.point);
+        }
+        foreach (Connection c in net.connections) {
+            renderer.addLine(c.line);
         }
 
         //batch.stop();
@@ -146,6 +162,7 @@ public class OnnxController : MonoBehaviour {
             net.neurons[i].point.v += new Vector3(Random.Range(-0.1f, 0.1f), Random.Range(-0.1f, 0.1f), Random.Range(-0.1f, 0.1f));
             net.neurons[i].point.c = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
             net.neurons[i].point.size = Random.Range(0f, 0.1f);
+            net.updatedNeuron(net.neurons[i]);
             t.pop();
         }
         t.pop();
