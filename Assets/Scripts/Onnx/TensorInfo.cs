@@ -5,6 +5,8 @@ using Google.Protobuf.Collections;
 using UnityEngine;
 
 public class TensorInfo {
+    string op_name;
+    string tensor_name;
     long[] d;
     bool is_input;
     bool is_constant;
@@ -19,9 +21,39 @@ public class TensorInfo {
         get { return Product(d); }
     }
 
+    public int GetDim(int i) {
+        if (i < d.Length) {
+            return (int)d[i];
+        } else {
+            return 1;
+        }
+    }
+
+    static ScalarInfo[,,,] CreateScalars(long[] d) {
+        if (d.Length == 0) {
+            return new ScalarInfo[1,1,1,1];
+        } else if (d.Length == 1) {
+            return new ScalarInfo[d[0],1,1,1];
+        } else if (d.Length == 2) {
+            return new ScalarInfo[d[0],d[1],1,1];
+        } else if (d.Length == 3) {
+            return new ScalarInfo[d[0],d[1],d[2],1];
+        } else if (d.Length == 4) {
+            return new ScalarInfo[d[0],d[1],d[2],d[3]];
+        } else {
+            throw new System.Exception($"Cannot create scalars for rank {d.Length}");
+        }
+    }
+
     public long[] AsConstIntVector() {
         if (Rank != 1) {
             Debug.LogError("Rank must be 1 in AsConstIntVector");
+        }
+        if (!is_constant) {
+            throw new System.Exception($"{op_name} {tensor_name} Not a constant");
+        }
+        if (scalars == null) {
+            throw new System.Exception("No scalars");
         }
         long[] result = new long[d[0]];
         for (var i = 0; i < d[0]; i++) {
@@ -45,6 +77,8 @@ public class TensorInfo {
         result.is_input = is_input;
         result.d = new long[dims.Count];
         result.layer = 0;
+        result.tensor_name = value.Name;
+        result.op_name = is_input ? "[input]" : "[not input]";
         for (int i = 0; i < dims.Count; i++) {
             if (dim_params.ContainsKey(dims[i].DimParam)) {
                 result.d[i] = dim_params[dims[i].DimParam];
@@ -64,6 +98,8 @@ public class TensorInfo {
         result.is_constant = true;
         result.d = new long[dims.Count];
         result.layer = 0;
+        result.tensor_name = tensor.Name;
+        result.op_name = "[constant]";
         for (int i = 0; i < dims.Count; i++) {
             result.d[i] = dims[i];
         }
@@ -163,6 +199,8 @@ public class TensorInfo {
             input_string += $"[{string.Join(",", tensors[input].d)}] ";
         }
         result.layer = layer;
+        result.tensor_name = node.Output[output_index];
+        result.op_name = node.Name;
         Debug.Log($"{node.OpType} Input dims: {input_string}. Output dims: {string.Join(",", result.d)}. Layer {result.layer}");
         bag.GripeIfNonempty(node.OpType);
         return result;
@@ -325,13 +363,17 @@ public class TensorInfo {
     }
 
     private static TensorInfo fromConcat(NodeProto node, Dictionary<string, TensorInfo> tensors, long axis) {
-        Debug.Log("Processing Gather");
+        Debug.Log("Processing Concat");
         
         var rank = tensors[node.Input[0]].Rank;
         if (axis < 0 || axis >= rank) {
             Debug.LogError("Concat: Axis out of range");
         }
+        if (rank > 4) {
+            Debug.LogError("Concat: rank too high");
+        }
         var d = new long[rank];
+        var all_constant = true;
         for (var i = 0; i < rank; i++) {
             for (var j = 0; j < node.Input.Count; j++) {
                 if (tensors[node.Input[j]].Rank != rank) {
@@ -347,10 +389,40 @@ public class TensorInfo {
                         Debug.LogError("Concat: dimension mismatch");
                     }
                 }
+                all_constant &= tensors[node.Input[j]].is_constant;
+                if (!tensors[node.Input[j]].is_constant) {
+                    Debug.LogError($"Concat: non-constant input: {tensors[node.Input[j]].op_name}");
+                }
             }
         }
         var result = new TensorInfo();
         result.d = d;
+
+        if (all_constant) {
+            result.scalars = CreateScalars(d);
+            var offsets = new long[4];
+            for (var i = 0; i < node.Input.Count; i++) {
+                all_constant &= tensors[node.Input[i]].is_constant;
+                var input = tensors[node.Input[i]];
+
+                if (input.scalars == null) {
+                    throw new Exception($"Concat: input scalars null, constant = {input.is_constant}");
+                }
+
+                for (var x = 0; x < input.GetDim(0); x++) {
+                    for (var y = 0; y < input.GetDim(1); y++) {
+                        for (var z = 0; z < input.GetDim(2); z++) {
+                            for (var w = 0; w < input.GetDim(3); w++) {
+                                result.scalars[offsets[0] + x,offsets[1] + y,offsets[2] + z,offsets[3] + w] = input.scalars[x,y,z,w];
+                            }
+                        }
+                    }
+                }
+                offsets[axis] += input.d[axis];
+            }
+        }
+        result.is_constant = all_constant;
+
         return result;
     }
 

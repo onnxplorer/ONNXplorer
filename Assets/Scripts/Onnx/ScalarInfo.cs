@@ -28,13 +28,17 @@ public class ScalarInfo {
 
     public static ScalarInfo FromTensorProto(TensorProto tensor, long index, byte[] rawData) {
         if (tensor.DataType == (int)TensorProto.Types.DataType.Int32) {
-            if (index > tensor.Int32Data.Count) {
-                //Debug.LogError("int32 index too big");
-            }
             return FromInt(tensor.Int32Data[(int)index]);
+        } else if (tensor.DataType == (int)TensorProto.Types.DataType.Int64) {
+            return FromInt(System.BitConverter.ToInt64(rawData, (int)(8 * index)));
         } else if (tensor.DataType == (int)TensorProto.Types.DataType.Float) {
             return FromFloat(System.BitConverter.ToSingle(rawData, (int)(4 * index)));
         }
         throw new System.Exception($"Cannot process data type {tensor.DataType}");
+    }
+
+    public static ScalarInfo Activation(int layer) {
+        ScalarInfo result = new ScalarInfo();
+        return result;
     }
 }
