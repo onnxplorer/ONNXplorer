@@ -1,0 +1,5 @@
+﻿grouping boxes
+dedicated colors for e.g. group indicator lines, dimensional relationship
+what if n-dimensional???
+activations, weights, AND biases
+  show two blobs, pre/post bias?

@@ -1,4 +1,6 @@
-﻿draw lines
+﻿fix .bat's to work on stock windows computers?
+
+draw lines
   advanced
     update
     remove
