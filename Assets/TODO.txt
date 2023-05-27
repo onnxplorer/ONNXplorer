@@ -3,7 +3,11 @@
     update
     remove
     clear
-    mass add
+    ^mass add
+
+arrange neurons
+  by connection gravity
+  by some kind of model structure
 
   ^check max lines
     (16 bit, unless set index type, then 32 bit)

@@ -1,9 +1,30 @@
-﻿using UnityEngine;
+﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
 
 public class Renderer : MonoBehaviour {
     private MeshRenderer meshRenderer;
     private MeshFilter meshFilter;
     private Mesh lineMesh;
+    private HashSet<LineRef> dirty = new HashSet<LineRef>();
+
+    private void flagDirty(LineRef lineRef) {
+        dirty.Add(lineRef);
+    }
+
+    public void recompute() {
+        if (dirty.Count > 0) {
+            Vector3[] vs = lineMesh.vertices;
+            Color[] cs = lineMesh.colors;
+            foreach (LineRef lr in dirty) {
+                vs[lr.idx] = lr.va;
+                vs[lr.idx+1] = lr.vb;
+                cs[lr.idx] = lr.ca;
+                cs[lr.idx+1] = lr.cb;
+            }
+            dirty.Clear();
+        }
+    }
 
     private void Awake() {
         Debug.Log("-->Renderer awake");
@@ -31,6 +52,12 @@ public class Renderer : MonoBehaviour {
         Debug.Log("<--Renderer awake");
     }
 
+    private void Update() {
+        //if (dirty.Count > 0) {
+        //    recompute();
+        //}
+    }
+
     private T[] AddToArray<T>(T[] array, params T[] elements) {
         T[] newArray = new T[array.Length + elements.Length];
         array.CopyTo(newArray, 0);
@@ -40,23 +67,23 @@ public class Renderer : MonoBehaviour {
 
     //THINK Return tokens, to delete/overwrite elements later?  Return an actual object to be changed?
     //DUMMY Turns out this method of doing points doesn't work too well; too small and you can't see it, too large and it's not a point, and either way it changes apparent height based on your closeness
-    public void addPoint(Vector3 pos, Color color) {
-        addLine(pos, color, new Vector3(pos.x, pos.y+0.001f, pos.z), color);
+    public LineRef addPoint(Vector3 pos, Color color) {
+        return addLine(pos, color, new Vector3(pos.x, pos.y+0.001f, pos.z), color);
     }
 
-    public void addPoint(Vector3 pos) {
-        addLine(pos, Color.white, new Vector3(pos.x, pos.y+0.001f, pos.z), Color.white);
+    public LineRef addPoint(Vector3 pos) {
+        return addLine(pos, Color.white, new Vector3(pos.x, pos.y+0.001f, pos.z), Color.white);
     }
 
-    public void addLine(Vector3 pos1, Vector3 pos2) {
-        addLine(pos1, Color.white, pos2, Color.white);
+    public LineRef addLine(Vector3 pos1, Vector3 pos2) {
+        return addLine(pos1, Color.white, pos2, Color.white);
     }
 
-    public void addLine(Vector3 pos1, Vector3 pos2, Color color) {
-        addLine(pos1, color, pos2, color);
+    public LineRef addLine(Vector3 pos1, Vector3 pos2, Color color) {
+        return addLine(pos1, color, pos2, color);
     }
 
-    public void addLine(Vector3 pos1, Color color1, Vector3 pos2, Color color2) {
+    public LineRef addLine(Vector3 pos1, Color color1, Vector3 pos2, Color color2) {
         // Example of updating the vectors and colors dynamically
 
         // Add a new line segment
@@ -84,12 +111,14 @@ public class Renderer : MonoBehaviour {
         // Notify Unity that the mesh has been updated
         lineMesh.RecalculateBounds();
         //lineMesh.RecalculateNormals();
+
+        return new LineRef(flagDirty, newIndex, pos1, color1, pos2, color2);
     }
 
     public void addLines(Vector3[] vertices, Color[] colors) { //RAINY Make better, like BetterLines
-        // Example of updating the vectors and colors dynamically
+        //THINK Check even count, equal counts?
+        //RAINY Return LineRef[]?  Have separate functions, to avoid OOM errors?
 
-        // Add a new line segment
         Vector3[] newVertices = lineMesh.vertices;
         Color[] newColors = lineMesh.colors;
 
