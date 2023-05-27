@@ -21,6 +21,10 @@ public class TensorInfo {
         get { return Product(d); }
     }
 
+    public ScalarInfo[,,,] Scalars {
+        get { return scalars; }
+    }
+
     public int GetDim(int i) {
         if (i < d.Length) {
             return (int)d[i];
@@ -70,7 +74,7 @@ public class TensorInfo {
         return result;
     }
 
-    public static TensorInfo fromValueInfoProto(ValueInfoProto value, bool is_input, Dictionary<string, long> dim_params) {
+    public static TensorInfo FromValueInfoProto(ValueInfoProto value, bool is_input, Dictionary<string, long> dim_params, System.Random random = null) {
         var result = new TensorInfo();
         var dims = value.Type.TensorType.Shape.Dim;
 
@@ -84,6 +88,17 @@ public class TensorInfo {
                 result.d[i] = dim_params[dims[i].DimParam];
             } else {
                 result.d[i] = dims[i].DimValue;
+            }
+        }
+
+        result.scalars = CreateScalars(result.d);
+        for (var x = 0; x < result.d[0]; x++) {
+            for (var y = 0; y < result.d[1]; y++) {
+                for (var z = 0; z < result.d[2]; z++) {
+                    for (var w = 0; w < result.d[3]; w++) {
+                        result.scalars[x,y,z,w] = ScalarInfo.Activation(result.layer, random);
+                    }
+                }
             }
         }
 

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-class Neuron {
+public class Neuron {
     //THINK The vectors in Connection are redundant with the vectors in its Neurons, keep them in sync; maybe reuse mesh vertices?
     public PointRef point; //THINK Possibly need better res than float32, with really big models
 

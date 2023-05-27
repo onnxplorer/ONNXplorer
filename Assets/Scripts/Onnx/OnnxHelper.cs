@@ -5,14 +5,15 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class OnnxHelper {
-    public static void CreateModelProto(string modelPath, Dictionary<string,long> dim_params) {
+    public static (List<Neuron>, List<Connection>) CreateModelProto(string modelPath, Dictionary<string,long> dim_params) {
         var model = ModelProto.Parser.ParseFrom(File.OpenRead(modelPath));
         var tensors = new Dictionary<string, TensorInfo>();
+        var random = new System.Random();
 
         Debug.Log("ModelProto created");
 
         foreach (var input in model.Graph.Input) {
-            tensors[input.Name] = TensorInfo.fromValueInfoProto(input, true, dim_params);
+            tensors[input.Name] = TensorInfo.FromValueInfoProto(input, true, dim_params, random);
         }
 
         foreach (var init in model.Graph.Initializer) {
@@ -35,6 +36,23 @@ public class OnnxHelper {
                 tensors[op.Output[i]] = result;
             }
         }
-        Debug.Log("That's it for values");
+
+        // Collect all the Neurons into a list
+        var neurons = new List<Neuron>();
+        var connections = new List<Connection>();
+        var seen = new HashSet<Neuron>();
+        foreach (var tensor in tensors.Values) {
+            if (tensor.Scalars != null) {
+                foreach (var scalar in tensor.Scalars) {
+                    if (scalar.GetNeuron != null && !seen.Contains(scalar.GetNeuron)) {
+                        neurons.Add(scalar.GetNeuron);
+                        seen.Add(scalar.GetNeuron);
+                    }
+                }
+            }
+        }
+
+        Debug.Log($"That's it for values. Have {neurons.Count} neurons and {connections.Count} connections");
+        return (neurons, connections);
     }
 }

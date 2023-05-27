@@ -1,3 +1,4 @@
+using System;
 using Onnx;
 using UnityEngine;
 
@@ -5,6 +6,13 @@ public class ScalarInfo {
     bool isConstInt;
     long constInt;
     double constFloat;
+    Neuron neuron;
+
+    public Neuron GetNeuron {
+        get {
+            return neuron;
+        }
+    }
 
     public long AsConstInt() {
         if (!isConstInt) {
@@ -37,8 +45,18 @@ public class ScalarInfo {
         throw new System.Exception($"Cannot process data type {tensor.DataType}");
     }
 
-    public static ScalarInfo Activation(int layer) {
+    public static ScalarInfo Activation(int layer, System.Random random) {
+        float x = layer;
+        float y = random.Next();
+        float z = random.Next();
+        float r = random.Next();
+        float g = random.Next();
+        float b = random.Next();
+        var point = new PointRef(new Vector3(x, y, z), new Color(r, g, b));
+        var neuron = new Neuron();
+        neuron.point = point;
         ScalarInfo result = new ScalarInfo();
+        result.neuron = neuron;
         return result;
     }
 }
