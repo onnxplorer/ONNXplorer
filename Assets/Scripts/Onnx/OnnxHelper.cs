@@ -22,7 +22,17 @@ public class OnnxHelper {
         foreach (var op in model.Graph.Node) {
             Debug.Log($"Processing operator {op.Name}");
             for (int i = 0; i < op.Output.Count; i++) {
-                tensors[op.Output[i]] = TensorInfo.fromOperatorOutput(op, i, tensors);
+                TensorInfo result = null;
+                try {
+                    result = TensorInfo.FromOperatorOutput(op, i, tensors);
+                } catch (System.Exception e) {
+                    Debug.LogError($"Error processing operator {op.Name}: {e}");
+                }
+                if (result == null) {
+                    Debug.LogError("Bombing out");
+                    break;
+                }
+                tensors[op.Output[i]] = result;
             }
         }
         Debug.Log("That's it for values");

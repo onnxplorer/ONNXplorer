@@ -153,7 +153,7 @@ public class TensorInfo {
         return result;
     }
 
-    public static TensorInfo fromOperatorOutput(NodeProto node, int output_index, Dictionary<string, TensorInfo> tensors) {
+    public static TensorInfo FromOperatorOutput(NodeProto node, int output_index, Dictionary<string, TensorInfo> tensors) {
         var bag = new AttrBag(node.Attribute);
         TensorInfo result = null;
         if (output_index == 0) {
@@ -191,6 +191,7 @@ public class TensorInfo {
 
         if (result == null) {
             Debug.LogError($"Unhandled operator type: {node.OpType} {output_index}");
+            return null;
         }
         var input_string = "";
         var layer = 0;
