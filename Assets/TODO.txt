@@ -1,0 +1,11 @@
+﻿draw lines
+  advanced
+    update
+    remove
+    clear
+    mass add
+
+  ^check max lines
+    (16 bit, unless set index type, then 32 bit)
+  ^basic
+^grip move

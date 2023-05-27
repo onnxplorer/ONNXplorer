@@ -8,6 +8,7 @@ public class Renderer : MonoBehaviour {
     private void Start() {
         // Create a new empty game object
         GameObject lineObject = new GameObject("LineObject");
+        lineObject.transform.parent = this.transform;
 
         // Add the necessary components
         meshRenderer = lineObject.AddComponent<MeshRenderer>();
@@ -18,6 +19,8 @@ public class Renderer : MonoBehaviour {
 
         // Create the initial line mesh
         lineMesh = new Mesh();
+        lineMesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32; //WARNING Note that this does not work on all systems, apparently...but probably most of them.
+
         lineMesh.vertices = new Vector3[]
         {
             new Vector3(0f, 0f, 0f),    // Start point of line 1
