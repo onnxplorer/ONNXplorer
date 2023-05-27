@@ -54,12 +54,13 @@ public class Renderer : MonoBehaviour {
 
 
     //THINK Return tokens, to delete/overwrite elements later?  Return an actual object to be changed?
+    //DUMMY Turns out this method of doing points doesn't work too well; too small and you can't see it, too large and it's not a point, and either way it changes apparent height based on your closeness
     public void addPoint(Vector3 pos, Color color) {
-        addLine(pos, color, pos, color);
+        addLine(pos, color, new Vector3(pos.x, pos.y+0.001f, pos.z), color);
     }
 
     public void addPoint(Vector3 pos) {
-        addLine(pos, Color.white, pos, Color.white);
+        addLine(pos, Color.white, new Vector3(pos.x, pos.y+0.001f, pos.z), Color.white);
     }
 
     public void addLine(Vector3 pos1, Vector3 pos2) {
