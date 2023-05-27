@@ -1,0 +1,26 @@
+#pragma kernel PointRendering
+
+StructuredBuffer<float3> pointBuffer; // Input buffer for point positions
+
+RWTexture2D<float4> resultTexture; // Output texture for rendering points
+
+[numthreads(256, 1, 1)]
+void PointRendering(uint3 id : SV_DispatchThreadID)
+{
+    // Get the position of the point
+    float3 position = pointBuffer[id.x];
+
+    // Calculate the normalized device coordinates (NDC) position
+    float3 ndcPosition = position / 10.0f; // Assuming the points are within a range of (-10, -10, -10) to (10, 10, 10)
+
+    // Convert NDC position to screen space
+    int width;
+    int height;
+    resultTexture.GetDimensions(width, height);
+    float2 screenPosition = (ndcPosition.xy + 1.0f) * 0.5f * float2(width, height);
+
+    // Render the point
+    resultTexture[uint2(screenPosition)] = float4(1.0f, 1.0f, 1.0f, 1.0f); // White point
+
+    // You can apply additional logic or perform computations here if needed
+}

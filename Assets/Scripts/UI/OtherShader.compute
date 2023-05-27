@@ -1,0 +1,15 @@
+RWTexture2D<float4> Result;
+Texture2D<float4> _color;
+
+[numthreads(8, 8, 1)]
+void Main(uint3 id : SV_DispatchThreadID)
+{
+    // I don't use this for anything now but I think it'll be necessary?
+    uint width, height;
+    Result.GetDimensions(width, height);
+    float2 uv = id.xy / float2(width, height);
+    //----
+
+
+    Result[id.xy] = _color[id.xy];
+}

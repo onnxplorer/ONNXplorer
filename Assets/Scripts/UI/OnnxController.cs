@@ -5,7 +5,8 @@ using UnityEngine;
 public class OnnxController : MonoBehaviour {
     public bool TEST_LINES_CR = false;
     public bool TEST_STRESS = false;
-    public bool TEST_LINES_UPDATE = true;
+    public bool TEST_LINES_UPDATE = false;
+    public bool TEST_POINTS = true;
 
     public Renderer renderer;
 
@@ -125,6 +126,12 @@ public class OnnxController : MonoBehaviour {
                 renderer.addLines(vertices, colors);
                 t.pop();
             }
+        }
+
+        if (TEST_POINTS) {
+            t.push("points");
+            
+            t.pop();
         }
 
         t.pop();
