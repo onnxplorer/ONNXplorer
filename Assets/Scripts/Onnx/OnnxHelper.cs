@@ -12,14 +12,17 @@ public class OnnxHelper {
 
         Debug.Log("ModelProto created");
 
+        // These are the inputs.
         foreach (var input in model.Graph.Input) {
             tensors[input.Name] = TensorInfo.FromValueInfoProto(input, true, dim_params, random);
         }
 
+        // These are the weights.
         foreach (var init in model.Graph.Initializer) {
             tensors[init.Name] = TensorInfo.fromTensorProto(init);
         }
 
+        // These are the operators which make up the bulk of the graph.
         foreach (var op in model.Graph.Node) {
             Debug.Log($"Processing operator {op.Name}");
             for (int i = 0; i < op.Output.Count; i++) {

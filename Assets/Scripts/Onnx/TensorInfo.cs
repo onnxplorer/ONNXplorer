@@ -354,6 +354,37 @@ public class TensorInfo {
         }
         var result = new TensorInfo();
         result.d = d;
+
+        if (data.is_constant && indices.is_constant) {
+            var scalars = CreateScalars(d);
+            for (var x = 0; x < scalars.GetLength(0); x++) {
+                for (var y = 0; y < scalars.GetLength(1); y++) {
+                    for (var z = 0; z < scalars.GetLength(2); z++) {
+                        for (var w = 0; w < scalars.GetLength(3); w++) {
+                            var index_ix = new long[]{x,y,z,w};
+                            for (var i = indices.Rank; i < 4; i++) {
+                                index_ix[i] = 0;
+                            }
+                            var index_value = indices.scalars[index_ix[0],index_ix[1],index_ix[2],index_ix[3]].AsConstInt();
+                            var data_ix = new long[4];
+                            j = indices.Rank;
+                            for (var i = 0; i < data.Rank; i++) {
+                                if (i == axis) {
+                                    data_ix[i] = index_value;
+                                } else {
+                                    data_ix[i] = data.d[j];
+                                    j++;
+                                }
+                            }
+                            scalars[x,y,z,w] = data.scalars[data_ix[0],data_ix[1],data_ix[2],data_ix[3]];
+                        }
+                    }
+                }
+            }
+            result.scalars = scalars;
+            result.is_constant = true;
+        }
+
         return result;
     }
 
@@ -476,8 +507,15 @@ public class TensorInfo {
     private static TensorInfo fromReshape(NodeProto node, Dictionary<string, TensorInfo> tensors) {
         var data = tensors[node.Input[0]];
         var shape = tensors[node.Input[1]].AsConstIntVector();
+        // See if any elements of shape are -1
+        if (Array.IndexOf(shape, -1) != -1) {
+            var product = Product(data.d);
+            var index = Array.IndexOf(shape, -1);
+            shape[index] = 1;
+            shape[index] = Product(data.d) / Product(shape);
+        }
         if (data.Count != Product(shape)) {
-            Debug.LogError("Reshape: count mismatch");
+            throw new Exception($"Reshape: count mismatch product({string.Join(",", shape)}) = product({string.Join(",", data.d)})");
         }
         var result = new TensorInfo();
         result.d = shape;

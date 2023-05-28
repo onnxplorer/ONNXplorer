@@ -16,7 +16,7 @@ public class ScalarInfo {
 
     public long AsConstInt() {
         if (!isConstInt) {
-            Debug.LogError("Not actually a const int");
+            throw new System.Exception("Not a const int");
         }
         return constInt;
     }
