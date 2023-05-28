@@ -10,8 +10,8 @@ using Microsoft.ML.OnnxRuntime.Tensors;
 
 public class Inference {
 	Thread thread;
-	
-    public (List<Neuron>, List<Connection>) run() {
+
+    public (List<Neuron>, List<Connection>) run(Consumer<(List<Neuron>, List<Connection>)> callback) {
         Debug.Log("Start function called");
         string modelPath = "models/mobilenetv2-10.onnx";
         var session = new InferenceSession(modelPath);
@@ -33,11 +33,15 @@ public class Inference {
         var dim_params = new Dictionary<string, long>();
         dim_params.Add("batch_size", 1);
 
-		asdf;
-		//return OnnxHelper.CreateModelProto(modelPath, dim_params);
-
-        thread = new Thread(new ThreadStart(() => OnnxHelper.CreateModelProto(modelPath, dim_params)));
-        thread.Start();
+        if (callback != null) {
+            thread = new Thread(new ThreadStart(() => {
+                callback(OnnxHelper.CreateModelProto(modelPath, dim_params));
+            }));
+            thread.Start();
+            return (null, null);
+        } else {
+            return OnnxHelper.CreateModelProto(modelPath, dim_params);
+        }
     }
 
     List<string> LoadLabels() {

@@ -65,9 +65,6 @@ public class ScalarInfo {
 
     public static ScalarInfo Activation(int layer, System.Random random) {
         float x = layer;
-        if (layer != 0) {
-            Debug.Log("nonzero: " + layer);
-        }
         float y = (float)random.NextDouble();
         float z = (float)random.NextDouble();
         float r = (float)random.NextDouble();

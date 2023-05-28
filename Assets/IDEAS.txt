@@ -22,3 +22,11 @@ placement
         (I've done this kind of computation before, so I can be the one to write this code.  I'm not sure I've done it on so MANY elements before, so like, I guess we'll find out how bad the processing demand is, haha.)
   could be interactive - the user scrubs the controller over neurons to make them realign or something
     also in general the user could select and move neurons
+
+UI
+  change neuron sizes
+    *base* size, maybe?  to be multiplied by individual factors?
+  select neurons
+  select connections
+  paint brush selection
+  convex hull selection
