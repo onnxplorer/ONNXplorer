@@ -73,4 +73,15 @@ public class ScalarInfo {
         result.neuron = neuron;
         return result;
     }
+
+    public static ScalarInfo AddFloats(int layer, System.Random random, ScalarInfo a, ScalarInfo b) {
+        if (a.IsZero())
+        var result = Activation(layer, random);
+        result.op = ScalarOp.AddFloat;
+        result.connections = new Connection[] {
+            new Connection(a.neuron, result.neuron),
+            new Connection(b.neuron, result.neuron)
+        };
+        return result;
+    }
 }

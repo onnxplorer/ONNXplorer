@@ -174,9 +174,8 @@ public class TensorInfo {
             wmax = dims[3];
         }
         if (tensor.Segment != null) {
-            Debug.Log($"Segment {tensor.Segment.Begin} {tensor.Segment.End}");
+            throw new System.Exception("Segment not supported");
         }
-        Debug.Log($"Tensor {tensor.Name} {tensor.DataType} {xmax} {ymax} {zmax} {wmax} {tensor.RawData.Length}");
         result.scalars = new ScalarInfo[xmax,ymax,zmax,wmax];
         var rawData = tensor.RawData.ToByteArray();
         for (var x = 0; x < xmax; x++ ) {
@@ -288,8 +287,39 @@ public class TensorInfo {
             Debug.LogError($"Unexpected kernel size: {string.Join(",", kernel_shape)} vs {string.Join(",", w.d)}");
         }
 
-        Debug.Log($"Group: {group}, kernel_shape: {string.Join(",", kernel_shape)}, pads: {string.Join(",", pads)}, strides: {string.Join(",", strides)}");
         result.d = new long[]{n, output_c, output_dims[0], output_dims[1]};
+        Debug.Log($"Group: {group}, kernel_shape: {string.Join(",", kernel_shape)}, pads: {string.Join(",", pads)}, strides: {string.Join(",", strides)}");
+
+        if (x.scalars != null && w.scalars != null) {
+            result.scalars = new ScalarInfo[result.d[0], result.d[1], result.d[2], result.d[3]];
+            for (int instance = 0; instance < n; instance++) {
+                for (int output_channel = 0; output_channel < output_c; output_channel++) {
+                    for (int output_y = 0; output_y < output_dims[0]; output_y++) {
+                        for (int output_x = 0; output_x < output_dims[1]; output_x++) {
+                            var sum = 0.0;
+                            for (int input_channel = 0; input_channel < c; input_channel++) {
+                                for (int kernel_y = 0; kernel_y < kernel_shape[0]; kernel_y++) {
+                                    for (int kernel_x = 0; kernel_x < kernel_shape[1]; kernel_x++) {
+                                        var input_y = output_y * strides[0] + kernel_y - pads[0];
+                                        var input_x = output_x * strides[1] + kernel_x - pads[2];
+                                        if (input_y >= 0 && input_y < input_dims[0] && input_x >= 0 && input_x < input_dims[1]) {
+                                            var input_index = instance * c * input_dims[0] * input_dims[1] + input_channel * input_dims[0] * input_dims[1] + input_y * input_dims[1] + input_x;
+                                            var kernel_index = output_channel * c * kernel_shape[0] * kernel_shape[1] + input_channel * kernel_shape[0] * kernel_shape[1] + kernel_y * kernel_shape[1] + kernel_x;
+                                            sum += x.scalars[input_index] * w.scalars[kernel_index];
+                                        }
+                                    }
+                                }
+                            }
+                            if (b != null) {
+                                sum += b.scalars[output_channel];
+                            }
+                            result.scalars[instance, output_channel, output_y, output_x] = sum;
+                        }
+                    }
+                }
+            }
+        }
+
         return result;
     }
 
