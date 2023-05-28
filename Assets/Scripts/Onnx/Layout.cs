@@ -167,7 +167,7 @@ public class Layout {
         return cutoff;
     }
 
-    static CoordArrays CreateElementwiseConnections(int[] inputDims, int[] outputDims, int layer0, int posInLayer0, int layer1, int posInLayer1, int maxConnectionsPerTensor, System.Random random, DenseTensor<float> t0, DenseTensor<float> t1, float cutoff)
+    static CoordArrays CreateElementwiseConnections(int[] inputDims, int[] outputDims, int layer0, int layer1, int posInLayer0, int posInLayer1, int maxConnectionsPerTensor, System.Random random, DenseTensor<float> t0, DenseTensor<float> t1, float cutoff)
     {
         var coordArrays = new CoordArrays(maxConnectionsPerTensor * 2);
  
