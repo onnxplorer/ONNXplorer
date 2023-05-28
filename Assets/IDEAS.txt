@@ -30,3 +30,28 @@ UI
   select connections
   paint brush selection
   convex hull selection
+
+Optimizations
+  memory
+    arrays instead of objects
+      potential problem: we don't (may not?) know how many things there are until parsing is done
+    could pass the entire vertex array in for rendering, no copying
+      Renderer create new mesh for large arrays, no copying into existing array
+  So...the real problem is we have too many lines, maybe.
+    So we need fewer lines.
+    (I dunno, I mean, LARGE models yeah, but there's no way to store a modest model in full, really?)
+      In the long run, selectively reparsing the model may be the way to go, but I think that's out of scope for now.
+    We could have "structure mode" by default?
+      Combine common output groups?
+      Like, a fully connected layer would have all neurons of one side connect to a point in the middle, and from there to every neuron on the next layer.
+      Would this affect the internal representation?  Would we stop storing every connection?
+        Unless we want to reparse the graph every time, we might HAVE to.  This conflicts with the next idea, flashlight mode.
+      Flashlight mode: hovering over a neuron shows you its full connectivity
+        I could start with this alone, see if it works and how much it buys us?
+        It could also be, whatever connections pass through the flashlight spot, get shown
+          Harder to code, more costly
+      Could reduce to transparent voxels
+        or like, convex hulls or something?
+        You can represent a cubic meter of cubic centimeters in 1,000,000 elements, might be ok
+    Remove random neurons from the visualization?
+      Seems bad, but also, if you're mainly after the overall structure, maybe it's fine

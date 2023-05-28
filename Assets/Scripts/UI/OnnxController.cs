@@ -272,7 +272,7 @@ public class OnnxController : MonoBehaviour {
             foreach (Neuron n in inf.Item1) {
                 net.neurons.Add(n);
             }
-            foreach (Connection c in net.connections) {
+            foreach (Connection c in inf.Item2) {
                 net.addConnection(c);
             }
 

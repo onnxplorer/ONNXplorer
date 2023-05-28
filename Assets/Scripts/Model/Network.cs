@@ -29,4 +29,17 @@ class Network {
             }
         }
     }
+    
+    /*
+     * vertices
+     *   +indices
+     * colors
+     *   +indices
+     * flagDirty
+     *   since WE'RE storing the arrays, no need to track which ones are dirty
+     * point size
+     * neuron weights
+     * neuron activations
+     * connection pairs
+     */
 }
