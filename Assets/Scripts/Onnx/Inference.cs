@@ -21,6 +21,18 @@ public class Inference {
         List<string> labels;
         UsefulModelInfo usefulInfo = null;
         switch (testCase) {
+            case -3: {
+                modelPath = "models/test_conv_with_autopad_same.onnx";
+                string modifiedModelPath = "models/test_conv_with_autopad_same_modified.onnx";
+
+                usefulInfo = Manipulate.ModifyOnnxFile(modelPath, modifiedModelPath);
+                Debug.Log("Model modified");
+                modelPath = modifiedModelPath;
+                inputs.Add(NamedOnnxValue.CreateFromTensor<float>("x", RandomTensor(new[] { 1, 1, 5, 5 })));
+                inputs.Add(NamedOnnxValue.CreateFromTensor<float>("W", RandomTensor(new[] { 1, 1, 3, 3 })));
+                labels = null;
+                break;
+            }
             case -2: {
                 modelPath = "models/mobilenetv2-10.onnx";
                 string modifiedModelPath = "models/mobilenetv2-10-modified.onnx";
@@ -80,7 +92,7 @@ public class Inference {
             if (usefulInfo != null) {
                 long totalNeuronCoordCount = 0;
                 long totalConnectionCoordCount = 0;
-                var (neuronCoords, connectionCoords) = Layout.GetCoordArrays(usefulInfo, results);
+                var (neuronCoords, connectionCoords) = Layout.GetCoordArrays(usefulInfo, results, 10000, 1000);
 
                 foreach (var coordArray in neuronCoords) {
                     totalNeuronCoordCount += coordArray.Length;
