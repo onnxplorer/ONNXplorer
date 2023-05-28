@@ -3,6 +3,7 @@ using Microsoft.ML.OnnxRuntime;
 using System.Collections.Generic;
 
 public class Layout {
+    public const float LITTLE_LINE_LENGTH = 0.01f;
     public const float LAYER_SX = 0.1f; //DUMMY This should probably normally be 1f or something, or maybe computed
     public static readonly float[] OFFSET = { 0.5f, 0.5f, 0.5f };
     public const float BF = 0.01f; // Sorta depends on how wide the tensors are...
@@ -57,8 +58,8 @@ public class Layout {
             var t = t0.ToDenseTensor();
 
             var coordArrays = new CoordArrays();
-            coordArrays.Positions = new Vector3[t0.Length];
-            coordArrays.Colors = new Color[t0.Length];
+            coordArrays.Positions = new Vector3[2 * t0.Length];
+            coordArrays.Colors = new Color[2 * t0.Length];
 
             var indices = new int[t.Rank];
             var layerNum = info.LayerNums[result.Name];
@@ -67,9 +68,15 @@ public class Layout {
             for (var i = 0; i < t.Length; i++) {
                 var position = Position(layerNum, indices, tensorPos);
                 var activation = t[indices];
+                var color = Color(activation);
 
-                coordArrays.Positions[i] = position;
-                coordArrays.Colors[i] = Color(activation);
+                coordArrays.Positions[2*i] = position;
+                coordArrays.Colors[2*i] = color;
+
+                var position2 = new Vector3(position.x, position.y + LITTLE_LINE_LENGTH, position.z);
+
+                coordArrays.Positions[2*i+1] = position2;
+                coordArrays.Colors[2*i+1] = color;
 
                 indices[0]++;
                 for (var j = 0; j < t.Rank - 1; j++) {
