@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-class Network {
+public class Network {
     //THINK Sets instead of Lists?
     public List<Neuron> neurons = new List<Neuron>();
     public List<Connection> connections = new List<Connection>();

@@ -19,7 +19,18 @@ public class Inference {
         DenseTensor<float> tensor;
         var inputs = new List<NamedOnnxValue>();
         List<string> labels;
+        UsefulModelInfo usefulInfo = null;
         switch (testCase) {
+            case -2: {
+                modelPath = "models/mobilenetv2-10.onnx";
+                string modifiedModelPath = "models/mobilenetv2-10-modified.onnx";
+
+                usefulInfo = Manipulate.ModifyOnnxFile(modelPath, modifiedModelPath);
+                Debug.Log("Model modified");
+                modelPath = modifiedModelPath;
+                labels = LoadLabels(); //THINK Not sure if this is only for mobilenet or what
+                break;
+            }
             case -1: {
                 tensor = RandomTensor(new[] { 2, 2 });
                 Debug.Log(PrintTensor(tensor));
@@ -53,28 +64,43 @@ public class Inference {
         Debug.Log("Session created");
         Debug.Log("Input created");
         using (var results = session.Run(inputs)) {
-            Debug.Log("Results created");
+            Debug.Log($"Results created. There are {results.Count} results.");
             foreach (var result in results) {
-                var t = result.AsTensor<float>().ToDenseTensor();
-                if (labels != null) {
-                    PrintTensor(t, labels);
-                } else {
-                    Debug.Log("result " + result.Name + " : " + PrintTensor(t));
+                if (usefulInfo == null || result.Name == usefulInfo.OriginalOutputs[0]) {
+                    var t = result.AsTensor<float>().ToDenseTensor();
+                    if (labels != null) {
+                        PrintTensor(t, labels);
+                    } else {
+                        Debug.Log("result " + result.Name + " : " + PrintTensor(t));
+                    }
                 }
+            }            
+
+            long totalCoordCount = 0;
+            var coordArrays = Layout.GetCoordArrays(usefulInfo, results);
+
+            foreach (var coordArray in coordArrays) {
+                totalCoordCount += coordArray.Length;
             }
+
+            Debug.Log($"Total coord count: {totalCoordCount}");
         }
 
-        var dim_params = new Dictionary<string, long>();
-        dim_params.Add("batch_size", 1);
+        if (usefulInfo == null) { //DUMMY Deal with if it is
+            var dim_params = new Dictionary<string, long>();
+            dim_params.Add("batch_size", 1);
 
-        if (callback != null) {
-            thread = new Thread(new ThreadStart(() => {
-                callback(OnnxHelper.CreateModelProto(modelPath, dim_params, breakEarly));
-            }));
-            thread.Start();
-            return (null, null);
+            if (callback != null) {
+                thread = new Thread(new ThreadStart(() => {
+                    callback(OnnxHelper.CreateModelProto(modelPath, dim_params, breakEarly));
+                }));
+                thread.Start();
+                return (null, null);
+            } else {
+                return OnnxHelper.CreateModelProto(modelPath, dim_params, breakEarly);
+            }
         } else {
-            return OnnxHelper.CreateModelProto(modelPath, dim_params, breakEarly);
+            return (null, null);
         }
     }
 
