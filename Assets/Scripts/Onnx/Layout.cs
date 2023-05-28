@@ -63,6 +63,9 @@ public class Layout {
 
             dimensions[result.Name] = t0.Dimensions.ToArray();
 
+            var opname = "";
+            info.OpNames.TryGetValue(result.Name, out opname);
+
             var t = t0.ToDenseTensor();
             tensorDict[result.Name] = t;
 
@@ -73,6 +76,8 @@ public class Layout {
             var indices = new int[t.Rank];
             var layerNum = info.LayerNums[result.Name];
             var tensorPos = TensorPosition(info.PlaceInLayer[result.Name]);
+
+            Debug.Log($"Tensor Name = {result.Name}, Op Name = {opname}, Layer = {layerNum}, Place = {info.PlaceInLayer[result.Name]}, Dimensions = {string.Join(", ", dimensions[result.Name])}");
 
             var coordI = 0;
             for (var i = 0; i < t.Length; i++) {
@@ -110,7 +115,6 @@ public class Layout {
                 }
                 coordI += 1;
             }
-            Debug.Log($"coordI = {coordI} for {result.Name}");
             coordArrays.Trim(2 * coordI);
 
             if (coordArrays.Length > 2) {
@@ -152,7 +156,7 @@ public class Layout {
 
     static float NeuronCutoff(DenseTensor<float> t, int maxNeuronsPerTensor) {
         if (t.Length <= maxNeuronsPerTensor) {
-            return float.PositiveInfinity;
+            return -1;
         }
         var sorted = new float[t.Length];
         var i = 0;
@@ -163,7 +167,6 @@ public class Layout {
         
         Array.Sort(sorted);
         var cutoff = sorted[Math.Max(0, sorted.Length - maxNeuronsPerTensor)];
-        Debug.Log($"Cutoff: {cutoff}. {sorted[0]} {sorted[sorted.Length-1]}");
         return cutoff;
     }
 
