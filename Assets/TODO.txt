@@ -2,7 +2,7 @@
 
 draw lines
   advanced
-    update
+    ^update
     remove
     clear
     ^mass add
