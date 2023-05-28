@@ -12,14 +12,18 @@ public class OnnxHelper {
 
         Debug.Log("ModelProto created");
 
+        // These are the inputs.
         foreach (var input in model.Graph.Input) {
-            tensors[input.Name] = TensorInfo.FromValueInfoProto(input, true, dim_params, random);
+            tensors[input.Name] = TensorInfo.FromInput(input, dim_params, random);
         }
 
+        // These are the weights (and maybe some constants).
         foreach (var init in model.Graph.Initializer) {
-            tensors[init.Name] = TensorInfo.fromTensorProto(init);
+            tensors[init.Name] = TensorInfo.FromTensorProto(init);
         }
 
+        // These are the operators which make up the bulk of the graph.
+        bool shouldBreak = false;
         foreach (var op in model.Graph.Node) {
             Debug.Log($"Processing operator {op.Name}");
             for (int i = 0; i < op.Output.Count; i++) {
@@ -31,9 +35,13 @@ public class OnnxHelper {
                 }
                 if (result == null) {
                     Debug.LogError("Bombing out");
+                    shouldBreak = true;
                     break;
                 }
                 tensors[op.Output[i]] = result;
+            }
+            if (shouldBreak) {
+                break;
             }
         }
 
@@ -47,6 +55,11 @@ public class OnnxHelper {
                     if (scalar.GetNeuron != null && !seen.Contains(scalar.GetNeuron)) {
                         neurons.Add(scalar.GetNeuron);
                         seen.Add(scalar.GetNeuron);
+                    }
+                    if (scalar.GetConnections != null) {
+                        foreach (var connection in scalar.GetConnections) {
+                            connections.Add(connection);
+                        }
                     }
                 }
             }
