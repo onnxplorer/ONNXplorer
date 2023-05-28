@@ -28,6 +28,7 @@ public class Inference {
                 usefulInfo = Manipulate.ModifyOnnxFile(modelPath, modifiedModelPath);
                 Debug.Log("Model modified");
                 modelPath = modifiedModelPath;
+                inputs.Add(NamedOnnxValue.CreateFromTensor<float>("input", CreateTensorFromKitten()));
                 labels = LoadLabels(); //THINK Not sure if this is only for mobilenet or what
                 break;
             }
@@ -74,16 +75,18 @@ public class Inference {
                         Debug.Log("result " + result.Name + " : " + PrintTensor(t));
                     }
                 }
-            }            
-
-            long totalCoordCount = 0;
-            var coordArrays = Layout.GetCoordArrays(usefulInfo, results);
-
-            foreach (var coordArray in coordArrays) {
-                totalCoordCount += coordArray.Length;
             }
 
-            Debug.Log($"Total coord count: {totalCoordCount}");
+            if (usefulInfo != null) {
+                long totalCoordCount = 0;
+                var coordArrays = Layout.GetCoordArrays(usefulInfo, results);
+
+                foreach (var coordArray in coordArrays) {
+                    totalCoordCount += coordArray.Length;
+                }
+
+                Debug.Log($"Total coord count: {totalCoordCount}");
+            }
         }
 
         if (usefulInfo == null) { //DUMMY Deal with if it is
