@@ -24,6 +24,7 @@ public class OnnxHelper {
 
         // These are the operators which make up the bulk of the graph.
         bool shouldBreak = false;
+        var opnum = 0;
         foreach (var op in model.Graph.Node) {
             Debug.Log($"Processing operator {op.Name}");
             for (int i = 0; i < op.Output.Count; i++) {
@@ -39,6 +40,11 @@ public class OnnxHelper {
                     break;
                 }
                 tensors[op.Output[i]] = result;
+            }
+            opnum++;
+            if (opnum >= 1) {
+                Debug.LogError($"Quitting early on opnum {opnum}");
+                break;
             }
             if (shouldBreak) {
                 break;

@@ -4,4 +4,5 @@ public enum ScalarOp {
     InputFloat,
     AddFloat,
     MulFloat,
+    ClipFloat,
 }
