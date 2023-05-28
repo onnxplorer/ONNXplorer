@@ -108,15 +108,15 @@ public class TensorInfo {
         return result;
     }
 
-    public static TensorInfo FromValueInfoProto(ValueInfoProto value, bool is_input, Dictionary<string, long> dim_params, System.Random random = null) {
+    public static TensorInfo FromInput(ValueInfoProto value, Dictionary<string, long> dim_params, System.Random random = null) {
         var result = new TensorInfo();
         var dims = value.Type.TensorType.Shape.Dim;
 
-        result.is_input = is_input;
+        result.is_input = true;
         result.d = new long[dims.Count];
         result.layer = 0;
         result.tensor_name = value.Name;
-        result.op_name = is_input ? "[input]" : "[not input]";
+        result.op_name = "[input]";
         for (int i = 0; i < dims.Count; i++) {
             if (dim_params.ContainsKey(dims[i].DimParam)) {
                 result.d[i] = dim_params[dims[i].DimParam];
@@ -130,7 +130,7 @@ public class TensorInfo {
             for (var y = 0; y < result.d[1]; y++) {
                 for (var z = 0; z < result.d[2]; z++) {
                     for (var w = 0; w < result.d[3]; w++) {
-                        result.scalars[x,y,z,w] = ScalarInfo.Activation(result.layer, random);
+                        result.scalars[x,y,z,w] = ScalarInfo.InputActivation(result.layer, random);
                     }
                 }
             }
@@ -139,7 +139,7 @@ public class TensorInfo {
         return result;
     }
 
-    public static TensorInfo fromTensorProto(TensorProto tensor) {
+    public static TensorInfo FromTensorProto(TensorProto tensor) {
         var result = new TensorInfo();
         var dims = tensor.Dims;
 
@@ -216,7 +216,7 @@ public class TensorInfo {
                 result = fromConstant(node, tensors);
                 bag.Clear();
             } else if (node.OpType == "Conv") {
-                result = fromConv(
+                result = FromConv(
                     node,
                     tensors,
                     bag.PullInt("group", 1),
@@ -265,7 +265,7 @@ public class TensorInfo {
         return result;
     }
 
-    public static TensorInfo fromConv(NodeProto node, Dictionary<string, TensorInfo> tensors, long group, long[] kernel_shape, long[] pads, long[] strides, long[] dilations) {
+    public static TensorInfo FromConv(NodeProto node, Dictionary<string, TensorInfo> tensors, long group, long[] kernel_shape, long[] pads, long[] strides, long[] dilations) {
         Debug.Log("Processing conv");
         var result = new TensorInfo();
         var x = tensors[node.Input[0]];
@@ -378,7 +378,7 @@ public class TensorInfo {
         Debug.Log("Processing Constant");
         foreach (var attribute in node.Attribute) {
             if (attribute.Name == "value") {
-                return fromTensorProto(attribute.T);
+                return FromTensorProto(attribute.T);
             } else if (attribute.Name == "sparse_value") {
                 Debug.LogError("Sparse values unhandled");
             } else {

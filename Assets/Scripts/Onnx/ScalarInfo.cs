@@ -3,10 +3,11 @@ using Onnx;
 using UnityEngine;
 
 public class ScalarInfo {
-    bool isConstInt;
+    ScalarOp op;
     long constInt;
     double constFloat;
     Neuron neuron;
+    Connection[] connections;
 
     public Neuron GetNeuron {
         get {
@@ -14,8 +15,14 @@ public class ScalarInfo {
         }
     }
 
+    public Connection[] GetConnections {
+        get {
+            return connections;
+        }
+    }
+
     public long AsConstInt() {
-        if (!isConstInt) {
+        if (op != ScalarOp.ConstInt) {
             throw new System.Exception("Not a const int");
         }
         return constInt;
@@ -23,13 +30,14 @@ public class ScalarInfo {
 
     public static ScalarInfo FromInt(long n) {
         ScalarInfo result = new ScalarInfo();
-        result.isConstInt = true;
+        result.op = ScalarOp.ConstInt;
         result.constInt = n;
         return result;
     }
 
     public static ScalarInfo FromFloat(double f) {
         ScalarInfo result = new ScalarInfo();
+        result.op = ScalarOp.ConstFloat;
         result.constFloat = f;
         return result;
     }
@@ -43,6 +51,12 @@ public class ScalarInfo {
             return FromFloat(System.BitConverter.ToSingle(rawData, (int)(4 * index)));
         }
         throw new System.Exception($"Cannot process data type {tensor.DataType}");
+    }
+
+    public static ScalarInfo InputActivation(int layer, System.Random random) {
+        ScalarInfo result = Activation(layer, random);
+        result.op = ScalarOp.InputFloat;
+        return result;
     }
 
     public static ScalarInfo Activation(int layer, System.Random random) {
