@@ -74,18 +74,24 @@ public class Layout {
             var layerNum = info.LayerNums[result.Name];
             var tensorPos = TensorPosition(info.PlaceInLayer[result.Name]);
 
+            var coordI = 0;
             for (var i = 0; i < t.Length; i++) {
-                var position = Position(layerNum, indices, tensorPos);
                 var activation = t[indices];
+
+                if (Math.Abs(activation) >= cutoff) {
+                    continue;
+                }
+
+                var position = Position(layerNum, indices, tensorPos);
                 var color = Color(activation);
 
-                coordArrays.Positions[2*i] = position;
-                coordArrays.Colors[2*i] = color;
+                coordArrays.Positions[2*coordI] = position;
+                coordArrays.Colors[2*coordI] = color;
 
                 var position2 = new Vector3(position.x, position.y + LITTLE_LINE_LENGTH, position.z);
 
-                coordArrays.Positions[2*i+1] = position2;
-                coordArrays.Colors[2*i+1] = color;
+                coordArrays.Positions[2*coordI+1] = position2;
+                coordArrays.Colors[2*coordI+1] = color;
 
                 indices[0]++;
                 for (var j = 0; j < t.Rank - 1; j++) {
@@ -95,10 +101,15 @@ public class Layout {
                     indices[j] = 0;
                     indices[j + 1]++;
                 }
+                coordI += 1;
+            }
+            coordArrays.Trim(2 * coordI);
+
+            if (coordArrays.Length > 2) {
+                coordArrayList.Add(coordArrays);
             }
 
-            coordArrayList.Add(coordArrays);
-
+            /*
             // Now deal with connections
             if (info.OpTypes.ContainsKey(result.Name)) {
                 var optype = info.OpTypes[result.Name];
@@ -129,6 +140,7 @@ public class Layout {
                     Debug.LogWarning($"Skipping connections for {result.Name} {optype} from {string.Join(", ", info.OpInputs[result.Name])}");
                 }
             }
+            */
         }
         return (coordArrayList, connectionArrayList);
     }
