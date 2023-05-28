@@ -120,7 +120,7 @@ public class TensorInfo {
         return result;
     }
 
-    public static TensorInfo FromInput(ValueInfoProto value, Dictionary<string, long> dim_params, System.Random random = null) {
+    public static TensorInfo FromInput(ValueInfoProto value, Vector3 positionOffset, Dictionary<string, long> dim_params, System.Random random = null) {
         var result = new TensorInfo();
         var dims = value.Type.TensorType.Shape.Dim;
 
@@ -143,7 +143,7 @@ public class TensorInfo {
             for (var y = 0; y < result.GetDim(1); y++) {
                 for (var z = 0; z < result.GetDim(2); z++) {
                     for (var w = 0; w < result.GetDim(3); w++) {
-                        result.scalars[x,y,z,w] = ScalarInfo.InputActivation(result.layer, (new[] { x, y, z, w }).Take(result.Rank).ToArray(), random);
+                        result.scalars[x,y,z,w] = ScalarInfo.InputActivation(result.layer, (new[] { x, y, z, w }).Take(result.Rank).ToArray(), positionOffset, random);
                     }
                 }
             }
@@ -225,6 +225,7 @@ public class TensorInfo {
             input_string += $"[{string.Join(",", tensors[input].d)}] ";
         }
 
+        //THINK Do we want to pass position offsets in through each of these?  Add a parameter to THIS function, even?
         if (output_index == 0) {
             if (node.OpType == "Add") {
                 result = fromAdd(node, tensors);
@@ -376,8 +377,8 @@ public class TensorInfo {
                                             var xscal = x.scalars[instance, g * w.d[1] + input_channel, input_y, input_x];
                                             var wscal = w.scalars[output_channel, input_channel, kernel_y, kernel_x];
                                             //CHECK I didn't really think too hard about these layerPosition values, not sure if they make sense
-                                            //THINK //SHAME I've messed with the layer positions to make this fake layer separate, but it relies on the BASIS being as it is, and is quite brittle and hacky
-                                            var product = ScalarInfo.MulFloats(layer, new[] { instance, output_channel, output_y, output_x, input_channel-6, kernel_y+2, kernel_x+2 }, random, xscal, wscal);
+                                            //MISC I've messed with the layer positions to make this fake layer separate; it's a bit magic-number, though
+                                            var product = ScalarInfo.MulFloats(layer, new[] { instance, output_channel, output_y, output_x, input_channel, kernel_y, kernel_x }, new Vector3(-0.05f, 0f, 0f), random, xscal, wscal);
                                             hidden.Add(product);
                                             list_to_sum.Add(product);
                                             opcount += 1;
@@ -391,7 +392,7 @@ public class TensorInfo {
                             if (b != null) {
                                 list_to_sum.Add(b.scalars[output_channel,0,0,0]);
                             }
-                            var sum = ScalarInfo.SumFloats(layer, new[] { instance, output_channel, output_y, output_x }, random, list_to_sum);
+                            var sum = ScalarInfo.SumFloats(layer, new[] { instance, output_channel, output_y, output_x }, Vector3.zero,  random, list_to_sum);
                             result.scalars[instance, output_channel, output_y, output_x] = sum;
                         }
                     }
@@ -430,7 +431,7 @@ public class TensorInfo {
                 for (var y = 0; y < result.GetDim(1); y++) {
                     for (var z = 0; z < result.GetDim(2); z++) {
                         for (var w = 0; w < result.GetDim(3); w++) {
-                            result.scalars[x,y,z,w] = ScalarInfo.ClipFloat(layer, (new[] { x, y, z, w }).Take(result.Rank).ToArray(), random, input.scalars[x,y,z,w]);
+                            result.scalars[x,y,z,w] = ScalarInfo.ClipFloat(layer, (new[] { x, y, z, w }).Take(result.Rank).ToArray(), Vector3.zero, random, input.scalars[x,y,z,w]);
                         }
                     }
                 }
@@ -455,7 +456,7 @@ public class TensorInfo {
                         for (var w = 0; w < result.GetDim(3); w++) {
                             //RAINY It bugs me that it just appends "1" for dimensions we don't have...and it kinda messes up the rendering.  ...So, the fix I came up with, hopefully it's not too heavy for this loop.
                             //THINK Consider applying this logic to other places
-                            result.scalars[x, y, z, w] = ScalarInfo.SigmoidFloat(layer, (new[] { x, y, z, w }).Take(result.Rank).ToArray(), random, input.scalars[x, y, z, w]);
+                            result.scalars[x, y, z, w] = ScalarInfo.SigmoidFloat(layer, (new[] { x, y, z, w }).Take(result.Rank).ToArray(), Vector3.zero, random, input.scalars[x, y, z, w]);
                         }
                     }
                 }
