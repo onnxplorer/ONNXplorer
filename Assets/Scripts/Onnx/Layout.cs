@@ -1,5 +1,7 @@
 using UnityEngine;
 using Microsoft.ML.OnnxRuntime;
+using Microsoft.ML.OnnxRuntime.Tensors;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -47,7 +49,7 @@ public class Layout {
         return new Vector3(0, placeInLayer, 0);
     }
 
-    public static (List<CoordArrays>,List<CoordArrays>) GetCoordArrays(UsefulModelInfo info, IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results)
+    public static (List<CoordArrays>,List<CoordArrays>) GetCoordArrays(UsefulModelInfo info, IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results, int maxNeuronsPerTensor, int maxConnectionsPerTensor)
     {
         var random = new System.Random(0);
         var coordArrayList = new List<CoordArrays>();
@@ -64,6 +66,7 @@ public class Layout {
             dimensions[result.Name] = t0.Dimensions.ToArray();
 
             var t = t0.ToDenseTensor();
+            var cutoff = NeuronCutoff(t, maxNeuronsPerTensor);
 
             var coordArrays = new CoordArrays(2 * t0.Length);
 
@@ -128,6 +131,29 @@ public class Layout {
             }
         }
         return (coordArrayList, connectionArrayList);
+    }
+
+    static float NeuronCutoff(DenseTensor<float> t, int maxNeuronsPerTensor) {
+        if (t.Length <= maxNeuronsPerTensor) {
+            return float.PositiveInfinity;
+        }
+        var sorted = new float[t.Length];
+        var indices = new int[t.Rank];
+        for (var i = 0; i < sorted.Length; i++) {
+            sorted[i] = Math.Abs(t[indices]);
+            indices[0]++;
+            for (var j = 0; j < t.Rank - 1; j++) {
+                if (indices[j] < t.Dimensions[j]) {
+                    break;
+                }
+                indices[j] = 0;
+                indices[j + 1]++;
+            }
+        }
+        
+        Array.Sort(sorted);
+        var cutoff = sorted[Math.Max(0, sorted.Length - maxNeuronsPerTensor)];
+        return cutoff;
     }
 
     static CoordArrays CreateElementwiseConnections(int[] inputDims, int[] outputDims, CoordArrays coordArrays0, CoordArrays coordArrays1)
