@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System;
+using System.Threading;
 using UnityEngine;
 
 using Microsoft.ML.OnnxRuntime;
@@ -9,6 +10,8 @@ using Microsoft.ML.OnnxRuntime.Tensors;
 
 public class Inference : MonoBehaviour
 {
+    Thread thread;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -36,7 +39,8 @@ public class Inference : MonoBehaviour
         var dim_params = new Dictionary<string, long>();
         dim_params.Add("batch_size", 1);
 
-        OnnxHelper.CreateModelProto(modelPath, dim_params);
+        thread = new Thread(new ThreadStart(() => OnnxHelper.CreateModelProto(modelPath, dim_params)));
+        thread.Start();
     }
 
     List<string> LoadLabels() {
