@@ -78,14 +78,18 @@ public class Inference {
             }
 
             if (usefulInfo != null) {
-                long totalCoordCount = 0;
-                var coordArrays = Layout.GetCoordArrays(usefulInfo, results);
+                long totalNeuronCoordCount = 0;
+                long totalConnectionCoordCount = 0;
+                var (neuronCoords, connectionCoords) = Layout.GetCoordArrays(usefulInfo, results);
 
-                foreach (var coordArray in coordArrays) {
-                    totalCoordCount += coordArray.Length;
+                foreach (var coordArray in neuronCoords) {
+                    totalNeuronCoordCount += coordArray.Length;
+                }
+                foreach (var coordArray in connectionCoords) {
+                    totalConnectionCoordCount += coordArray.Length;
                 }
 
-                Debug.Log($"Total coord count: {totalCoordCount}");
+                Debug.Log($"Total coord count. Neurons: {totalNeuronCoordCount}. Connections: {totalConnectionCoordCount}");
             }
         }
 

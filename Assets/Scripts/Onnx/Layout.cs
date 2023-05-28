@@ -1,6 +1,7 @@
 using UnityEngine;
 using Microsoft.ML.OnnxRuntime;
 using System.Collections.Generic;
+using System.Linq;
 
 public class Layout {
     public const float LITTLE_LINE_LENGTH = 0.01f;
@@ -46,20 +47,25 @@ public class Layout {
         return new Vector3(0, placeInLayer, 0);
     }
 
-    public static List<CoordArrays> GetCoordArrays(UsefulModelInfo info, IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results)
+    public static (List<CoordArrays>,List<CoordArrays>) GetCoordArrays(UsefulModelInfo info, IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results)
     {
+        var random = new System.Random(0);
         var coordArrayList = new List<CoordArrays>();
+        var connectionArrayList = new List<CoordArrays>();
+        var tensorNeuronBlockIndex = new Dictionary<string, int>();
+        var dimensions = new Dictionary<string, int[]>();
         foreach (var result in results) {
             var t0 = result.AsTensor<float>();
             if (t0 == null) {
                 continue;
             }
 
+            tensorNeuronBlockIndex[result.Name] = coordArrayList.Count;
+            dimensions[result.Name] = t0.Dimensions.ToArray();
+
             var t = t0.ToDenseTensor();
 
-            var coordArrays = new CoordArrays();
-            coordArrays.Positions = new Vector3[2 * t0.Length];
-            coordArrays.Colors = new Color[2 * t0.Length];
+            var coordArrays = new CoordArrays(2 * t0.Length);
 
             var indices = new int[t.Rank];
             var layerNum = info.LayerNums[result.Name];
@@ -89,7 +95,65 @@ public class Layout {
             }
 
             coordArrayList.Add(coordArrays);
+
+            // Now deal with connections
+            if (info.OpTypes.ContainsKey(result.Name)) {
+                var optype = info.OpTypes[result.Name];
+
+                // Local function to factor out connectionArrays logic
+                void AddElementwiseConnectionArrays(string input) {
+                    if (tensorNeuronBlockIndex.ContainsKey(input)) {
+                        var inputIndex = tensorNeuronBlockIndex[input];
+                        var inputDims = dimensions[input];
+                        var outputDims = dimensions[result.Name];
+
+                        // Display an error and skip if the tensors are different shapes
+                        if (!inputDims.SequenceEqual(outputDims)) {
+                            Debug.LogError($"Elementwise: Tensor {result.Name} has shape {string.Join(",",outputDims)} but tensor {input} has shape {string.Join(",",inputDims)}");
+                            return;
+                        }
+
+                        var connectionArrays = new CoordArrays(2 * t.Length);
+                        for (var i = 0; i < t.Length; i++) {
+                            var position0 = coordArrayList[inputIndex].Positions[2*i];
+                            var position1 = coordArrays.Positions[2*i];
+                            var color0 = new Color((float)random.NextDouble(), (float)random.NextDouble(), (float)random.NextDouble());
+                            var color1 = new Color((float)random.NextDouble(), (float)random.NextDouble(), (float)random.NextDouble());
+
+                            connectionArrays.Positions[2*i] = position0;
+                            connectionArrays.Positions[2*i+1] = position1;
+                            connectionArrays.Colors[2*i] = color0;
+                            connectionArrays.Colors[2*i+1] = color1;
+
+                            indices[0]++;
+                            for (var j = 0; j < t.Rank - 1; j++) {
+                                if (indices[j] < t.Dimensions[j]) {
+                                    break;
+                                }
+                                indices[j] = 0;
+                                indices[j + 1]++;
+                            }
+                        }
+                        connectionArrayList.Add(connectionArrays);
+                    } else {
+                        Debug.Log($"No tensorNeuronBlockIndex entry for {input}. It's probably an input layer, parameter or constant");
+                    }
+                }
+
+                if (optype == "Add") {
+                    if (info.OpInputs[result.Name].Length == 2) {
+                        var input0 = info.OpInputs[result.Name][0];
+                        var input1 = info.OpInputs[result.Name][1];
+                        AddElementwiseConnectionArrays(input0);
+                        AddElementwiseConnectionArrays(input1);
+                    } else {
+                        Debug.LogError($"Unexpected number of inputs for Add: {info.OpInputs[result.Name].Length}");
+                    }
+                } else {
+                    Debug.LogWarning($"Skipping connections for {result.Name} {optype} from {string.Join(", ", info.OpInputs[result.Name])}");
+                }
+            }
         }
-        return coordArrayList;
+        return (coordArrayList, connectionArrayList);
     }
 }
