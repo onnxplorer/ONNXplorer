@@ -17,7 +17,9 @@ public class CoordArrays {
     }
 
     public void Trim(long len) {
-        Positions = Positions.Take((int)len).ToArray();
-        Colors = Colors.Take((int)len).ToArray();
+        if (len != Positions.Length) {
+            Positions = Positions.Take((int)len).ToArray();
+            Colors = Colors.Take((int)len).ToArray();
+        }
     }
 }
