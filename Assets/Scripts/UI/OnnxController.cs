@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class OnnxController : MonoBehaviour {
+    public bool SHOW_ORIGIN = true;
     public bool TEST_LINES_CR = true;
     public bool TEST_STRESS = false;
     public bool TEST_LINES_UPDATE = false;
@@ -11,6 +12,9 @@ public class OnnxController : MonoBehaviour {
     public bool TEST_POINTS_UPDATE_1N = false;
     public bool TEST_NET = false;
     public bool TEST_ONNX = false;
+
+    public int TEST_CASE = 2;
+    public int BREAK_ON_LAYER = int.MaxValue;
 
     public Renderer renderer;
 
@@ -176,6 +180,12 @@ public class OnnxController : MonoBehaviour {
     void Start() {
         var t = new Timing().push("OnnxController start");
 
+        if (SHOW_ORIGIN) {
+            renderer.addLine(Vector3.zero, Vector3.right, Color.red);
+            renderer.addLine(Vector3.zero, Vector3.up, Color.green);
+            renderer.addLine(Vector3.zero, Vector3.forward, Color.blue);
+        }
+
         if (TEST_STRESS) {
             t.push("stress");
             int EDGEP_START = 9;
@@ -263,7 +273,7 @@ public class OnnxController : MonoBehaviour {
 
         if (TEST_ONNX) {
             t.push("onnx");
-            var inf = new Inference().run();
+            var inf = new Inference().run(null, TEST_CASE, BREAK_ON_LAYER);
             t.log("got result: " + inf);
 
             Network net = new Network();
@@ -272,7 +282,7 @@ public class OnnxController : MonoBehaviour {
             foreach (Neuron n in inf.Item1) {
                 net.neurons.Add(n);
             }
-            foreach (Connection c in net.connections) {
+            foreach (Connection c in inf.Item2) {
                 net.addConnection(c);
             }
 

@@ -42,7 +42,7 @@ public class LineRef : RenderElementRef {
         }
     }
 
-    public LineRef() : this(Vector3.zero, Color.white, Vector3.zero, Color.white) {}
+    public LineRef() : this(Vector3.zero, Color.grey, Vector3.zero, Color.grey) {}
 
     public LineRef(Vector3 va, Color ca, Vector3 vb, Color cb) : base(_flagDirtyNOOP, -1) {
         this.va = va;

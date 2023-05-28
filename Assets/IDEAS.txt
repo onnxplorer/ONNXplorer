@@ -3,3 +3,56 @@ dedicated colors for e.g. group indicator lines, dimensional relationship
 what if n-dimensional???
 activations, weights, AND biases
   show two blobs, pre/post bias?
+
+placement
+  deterministic
+    x is based mainly on layer
+      modified by "sublayers"
+      and by extra dimensions in tensors
+        have vector associated with each tensor dimension (e.g., 4th dimension = [0.1, -0.1, 0.1], 5th = [0.2, 0.1, -0.1], or whatever) then each neuron's tensor index is multiplied by those vectors and added to the neuron's initial position
+      could take parallel operations and give them a certain amount of YZ space, then make sure they don't overlap each other
+    y and z I guess initially depend on location in tensor.  probably just that tensor_index * basis_vectors thing, really, it just works for the major YZ values in addition to smaller modifications
+  nondeterministic
+    connection gravity
+        layer probably still determines x
+        and tensor could *maybe* still modify coordinates
+        but the main idea is you take each neuron, apply an attractive force on it based on the strength of its connections, and a repulsive force based on its neighbors, and iterate a bunch.
+          might take a while.  could need like a KDTree to find its nearest neighbors efficiently.  I've written C# code that uses one before, but I don't remember how well it handles element positions changing.
+          might be some other things to try, like simply scaling the network out to fill bounds; that MIGHT accomplish a sort of repulsive effect.
+        (I've done this kind of computation before, so I can be the one to write this code.  I'm not sure I've done it on so MANY elements before, so like, I guess we'll find out how bad the processing demand is, haha.)
+  could be interactive - the user scrubs the controller over neurons to make them realign or something
+    also in general the user could select and move neurons
+
+UI
+  change neuron sizes
+    *base* size, maybe?  to be multiplied by individual factors?
+  select neurons
+  select connections
+  paint brush selection
+  convex hull selection
+
+Optimizations
+  memory
+    arrays instead of objects
+      potential problem: we don't (may not?) know how many things there are until parsing is done
+    could pass the entire vertex array in for rendering, no copying
+      Renderer create new mesh for large arrays, no copying into existing array
+  So...the real problem is we have too many lines, maybe.
+    So we need fewer lines.
+    (I dunno, I mean, LARGE models yeah, but there's no way to store a modest model in full, really?)
+      In the long run, selectively reparsing the model may be the way to go, but I think that's out of scope for now.
+    We could have "structure mode" by default?
+      Combine common output groups?
+      Like, a fully connected layer would have all neurons of one side connect to a point in the middle, and from there to every neuron on the next layer.
+      Would this affect the internal representation?  Would we stop storing every connection?
+        Unless we want to reparse the graph every time, we might HAVE to.  This conflicts with the next idea, flashlight mode.
+      Flashlight mode: hovering over a neuron shows you its full connectivity
+        I could start with this alone, see if it works and how much it buys us?
+        It could also be, whatever connections pass through the flashlight spot, get shown
+          Harder to code, more costly
+      Could reduce to transparent voxels
+        or like, convex hulls or something?
+        You can represent a cubic meter of cubic centimeters in 1,000,000 elements, might be ok
+    Remove random neurons from the visualization?
+      Seems bad, but also, if you're mainly after the overall structure, maybe it's fine
+    Subdividable blocks?  Like, Mul.  Zoom in to see the multiplications?

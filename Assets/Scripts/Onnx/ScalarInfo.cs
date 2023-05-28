@@ -1,12 +1,14 @@
 using System;
+using System.Collections.Generic;
 using Onnx;
 using UnityEngine;
 
 public class ScalarInfo {
-    bool isConstInt;
+    ScalarOp op;
     long constInt;
     double constFloat;
     Neuron neuron;
+    List<Connection> connections;
 
     public Neuron GetNeuron {
         get {
@@ -14,22 +16,33 @@ public class ScalarInfo {
         }
     }
 
+    public List<Connection> GetConnections {
+        get {
+            return connections;
+        }
+    }
+
+    public bool IsConstFloatZero() {
+        return op == ScalarOp.ConstFloat && constFloat == 0;
+    }
+
     public long AsConstInt() {
-        if (!isConstInt) {
-            Debug.LogError("Not actually a const int");
+        if (op != ScalarOp.ConstInt) {
+            throw new System.Exception("Not a const int");
         }
         return constInt;
     }
 
     public static ScalarInfo FromInt(long n) {
         ScalarInfo result = new ScalarInfo();
-        result.isConstInt = true;
+        result.op = ScalarOp.ConstInt;
         result.constInt = n;
         return result;
     }
 
     public static ScalarInfo FromFloat(double f) {
         ScalarInfo result = new ScalarInfo();
+        result.op = ScalarOp.ConstFloat;
         result.constFloat = f;
         return result;
     }
@@ -45,13 +58,38 @@ public class ScalarInfo {
         throw new System.Exception($"Cannot process data type {tensor.DataType}");
     }
 
-    public static ScalarInfo Activation(int layer, System.Random random) {
-        float x = layer;
-        if (layer != 0) {
-            Debug.Log("nonzero: " + layer);
+    public static ScalarInfo InputActivation(int layer, int[] layerPosition, Vector3 positionOffset, System.Random random) {
+        ScalarInfo result = Activation(layer, layerPosition, positionOffset, random);
+        result.op = ScalarOp.InputFloat;
+        return result;
+    }
+
+    public const float LAYER_SX = 0.1f; //DUMMY This should probably normally be 1f or something, or maybe computed
+    public static readonly float[] OFFSET = { 0.5f, 0.5f, 0.5f };
+    public const float BF = 0.01f; // Sorta depends on how wide the tensors are...
+    public static readonly float[,] BASIS = { //RAINY There's probably a nice math library we've already imported that would make the multiplication more efficient or something
+        { 0f, 0f, BF },
+        { 0f, -BF, 0f },
+        { BF, -BF/3, BF/3 },
+        { BF/2, -BF/2, BF/2 },
+        { BF/4, BF/8, -BF/8 },
+        { -BF/8, BF/16, -BF/16 }, // These are quite arbitrary from here on
+        { BF/32, -BF/32, -BF/32 },
+        { -BF/64, -BF/64, BF/64 },
+    };
+
+    //THINK The indices are generally given as ints, but technically the dimensions are longs.  OTOH, a difference would mean having a tensor over like, 4 billion items long.  It's at least somewhat unlikely.
+    public static ScalarInfo Activation(int layer, int[] layerPosition, Vector3 positionOffset, System.Random random) {
+        float x = LAYER_SX*layer + OFFSET[0] + positionOffset.x;
+        float y = OFFSET[1] + positionOffset.y;
+        float z = OFFSET[2] + positionOffset.z;
+        int j = 0;
+        for (int i = layerPosition.Length - 1; i >= 0; i--) {
+            x += BASIS[j, 0] * layerPosition[i];
+            y += BASIS[j, 1] * layerPosition[i];
+            z += BASIS[j, 2] * layerPosition[i];
+            j++; //SHAME shrug
         }
-        float y = (float)random.NextDouble();
-        float z = (float)random.NextDouble();
         float r = (float)random.NextDouble();
         float g = (float)random.NextDouble();
         float b = (float)random.NextDouble();
@@ -60,6 +98,76 @@ public class ScalarInfo {
         neuron.point = point;
         ScalarInfo result = new ScalarInfo();
         result.neuron = neuron;
+        return result;
+    }
+
+    public static ScalarInfo AddFloats(int layer, int[] layerPosition, Vector3 positionOffset, System.Random random, ScalarInfo a, ScalarInfo b) {
+        if (a.IsConstFloatZero()) {
+            return b;
+        }
+        if (b.IsConstFloatZero()) {
+            return a;
+        }
+        var result = Activation(layer, layerPosition, positionOffset, random);
+        result.op = ScalarOp.AddFloat;
+        result.connections = new List<Connection>();
+        if (a.neuron != null) {
+            result.connections.Add(new Connection(a.neuron, result.neuron));
+        }
+        if (b.neuron != null) {
+            result.connections.Add(new Connection(b.neuron, result.neuron));
+        }
+        return result;
+    }
+
+    public static ScalarInfo SumFloats(int layer, int[] layerPosition, Vector3 positionOffset, System.Random random, List<ScalarInfo> scalars) {
+        var result = Activation(layer, layerPosition, positionOffset, random);
+        result.op = ScalarOp.AddFloat;
+        result.connections = new List<Connection>();
+        foreach (var scalar in scalars) {
+            if (scalar.IsConstFloatZero()) {
+                continue;
+            }
+            if (scalar.neuron != null) {
+                result.connections.Add(new Connection(scalar.neuron, result.neuron));
+            }
+        }
+        return result;
+    }
+
+    public static ScalarInfo MulFloats(int layer, int[] layerPosition, Vector3 positionOffset, System.Random random, ScalarInfo a, ScalarInfo b) {
+        if (a.IsConstFloatZero() || b.IsConstFloatZero()) {
+            return FromFloat(0);
+        }
+        var result = Activation(layer, layerPosition, positionOffset, random);
+        result.op = ScalarOp.MulFloat;
+        result.connections = new List<Connection>();
+        if (a.neuron != null) {
+            result.connections.Add(new Connection(a.neuron, result.neuron));
+        }
+        if (b.neuron != null) {
+            result.connections.Add(new Connection(b.neuron, result.neuron));
+        }
+        return result;
+    }
+
+    public static ScalarInfo ClipFloat(int layer, int[] layerPosition, Vector3 positionOffset, System.Random random, ScalarInfo a) {
+        var result = Activation(layer, layerPosition, positionOffset, random);
+        result.op = ScalarOp.ClipFloat;
+        result.connections = new List<Connection>();
+        if (a.neuron != null) {
+            result.connections.Add(new Connection(a.neuron, result.neuron));
+        }
+        return result;
+    }
+
+    public static ScalarInfo SigmoidFloat(int layer, int[] layerPosition, Vector3 positionOffset, System.Random random, ScalarInfo a) {
+        var result = Activation(layer, layerPosition, positionOffset, random);
+        result.op = ScalarOp.SigmoidFloat;
+        result.connections = new List<Connection>();
+        if (a.neuron != null) {
+            result.connections.Add(new Connection(a.neuron, result.neuron));
+        }
         return result;
     }
 }

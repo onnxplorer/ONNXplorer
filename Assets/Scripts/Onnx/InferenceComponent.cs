@@ -11,7 +11,9 @@ public class InferenceComponent : MonoBehaviour
 {
     // Start is called before the first frame update
     void Start() {
-        new Inference().run();
+        new Inference().run((result) => {
+            Debug.Log("Got result: " + result);
+        });
     }
 
     // Update is called once per frame
