@@ -25,6 +25,7 @@ public class Manipulate {
             info.LayerNums[n.Output[0]] = layer;
             info.OpTypes[n.Output[0]] = n.OpType;
             info.OpInputs[n.Output[0]] = n.Input.ToArray();
+            info.OpNames[n.Output[0]] = n.Name;
 
             if (!layerTensorCounts.ContainsKey(layer)) {
                 layerTensorCounts[layer] = 0;
@@ -46,6 +47,7 @@ public class Manipulate {
         info.PlaceInLayer = new Dictionary<string, int>();
         info.OpTypes = new Dictionary<string, string>();
         info.OpInputs = new Dictionary<string, string[]>();
+        info.OpNames = new Dictionary<string, string>();
 
         var model = ModelProto.Parser.ParseFrom(System.IO.File.OpenRead(modelPath));
         AddActivationsToOutputs(model, info);
