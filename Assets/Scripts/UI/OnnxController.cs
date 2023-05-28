@@ -13,6 +13,7 @@ public class OnnxController : MonoBehaviour {
     public bool TEST_NET = false;
     public bool TEST_ONNX = false;
     public bool TEST_SINGLE_MESH = false;
+    public bool TEST_HIJACKED_NETWORK = false;
 
     public int TEST_CASE = 2;
     public int BREAK_ON_LAYER = int.MaxValue;
@@ -309,7 +310,7 @@ public class OnnxController : MonoBehaviour {
 
         if (TEST_ONNX) {
             t.push("onnx");
-            var inf = new Inference().run(null, TEST_CASE, BREAK_ON_LAYER);
+            var inf = new Inference().run(null, null, TEST_CASE, BREAK_ON_LAYER);
             t.log("got result: " + inf);
 
             Network net = new Network();
@@ -328,6 +329,25 @@ public class OnnxController : MonoBehaviour {
             flashlight.network = net;
 
             t.pop();
+        }
+
+        if (TEST_HIJACKED_NETWORK) {
+            t.push("onnx hijacked");
+            new Inference().run(null, (pair) => {
+                List<CoordArrays> nss = pair.Item1;
+                List<CoordArrays> css = pair.Item2;
+                t.log("got result: " + pair);
+
+                foreach (CoordArrays ns in nss) {
+                    renderer.addWholeMesh(ns.Positions, ns.Colors);
+                }
+                foreach (CoordArrays cs in css) {
+                    renderer.addWholeMesh(cs.Positions, cs.Colors);
+                }
+                //DUMMY Flashlight doesn't have this net
+            }, -2, 1);
+
+             t.pop();
         }
 
         t.pop();
