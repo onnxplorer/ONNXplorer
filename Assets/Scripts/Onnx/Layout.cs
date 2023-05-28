@@ -203,6 +203,7 @@ public class Layout {
             coordArrays.Positions[2*coordI+1] = positions.Item2;
             coordArrays.Colors[2*coordI] = color0;
             coordArrays.Colors[2*coordI+1] = color1;
+            coordI++;
 
             indices[0]++;
             for (var j = 0; j < outputDims.Length - 1; j++) {
