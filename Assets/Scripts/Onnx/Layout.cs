@@ -53,21 +53,22 @@ public class Layout {
         var random = new System.Random(0);
         var coordArrayList = new List<CoordArrays>();
         var connectionArrayList = new List<CoordArrays>();
-        var tensorNeuronBlockIndex = new Dictionary<string, int>();
         var dimensions = new Dictionary<string, int[]>();
+        var tensorDict = new Dictionary<string, DenseTensor<float>>();
         foreach (var result in results) {
             var t0 = result.AsTensor<float>();
             if (t0 == null) {
                 continue;
             }
 
-            tensorNeuronBlockIndex[result.Name] = coordArrayList.Count;
             dimensions[result.Name] = t0.Dimensions.ToArray();
 
             var t = t0.ToDenseTensor();
+            tensorDict[result.Name] = t;
+
             var cutoff = NeuronCutoff(t, maxNeuronsPerTensor);
 
-            var coordArrays = new CoordArrays(t0.Length);
+            var coordArrays = new CoordArrays(Math.Min(t0.Length, maxNeuronsPerTensor));
 
             var indices = new int[t.Rank];
             var layerNum = info.LayerNums[result.Name];
@@ -77,8 +78,20 @@ public class Layout {
             for (var i = 0; i < t.Length; i++) {
                 var activation = t[indices];
 
-                if (Math.Abs(activation) >= cutoff) {
+                if (Math.Abs(activation) <= cutoff) {
+                    indices[0]++;
+                    for (var j = 0; j < t.Rank - 1; j++) {
+                        if (indices[j] < t.Dimensions[j]) {
+                            break;
+                        }
+                        indices[j] = 0;
+                        indices[j + 1]++;
+                    }
                     continue;
+                }
+                if (coordI >= maxNeuronsPerTensor) {
+                    Debug.LogError("coordI >= maxNeuronsPerTensor");
+                    break;
                 }
 
                 var position = Position(layerNum, indices, tensorPos);
@@ -97,25 +110,24 @@ public class Layout {
                 }
                 coordI += 1;
             }
+            Debug.Log($"coordI = {coordI} for {result.Name}");
             coordArrays.Trim(2 * coordI);
 
             if (coordArrays.Length > 2) {
                 coordArrayList.Add(coordArrays);
             }
 
-            /*
             // Now deal with connections
             if (info.OpTypes.ContainsKey(result.Name)) {
                 var optype = info.OpTypes[result.Name];
 
                 // Local function to factor out connectionArrays logic
                 void AddElementwiseConnectionArrays(string input) {
-                    if (tensorNeuronBlockIndex.ContainsKey(input)) {
-                        var inputIndex = tensorNeuronBlockIndex[input];
+                    if (dimensions.ContainsKey(input)) {
                         var inputDims = dimensions[input];
                         var outputDims = dimensions[result.Name];
 
-                        var connectionArrays = CreateElementwiseConnections(inputDims, outputDims, coordArrayList[inputIndex], coordArrays);
+                        var connectionArrays = CreateElementwiseConnections(inputDims, outputDims, info.LayerNums[input], info.LayerNums[result.Name], info.PlaceInLayer[input], info.PlaceInLayer[result.Name], maxConnectionsPerTensor, random, tensorDict[input], tensorDict[result.Name], cutoff);
                         if (connectionArrays != null) {
                             connectionArrayList.Add(connectionArrays);
                         }
@@ -134,7 +146,6 @@ public class Layout {
                     Debug.LogWarning($"Skipping connections for {result.Name} {optype} from {string.Join(", ", info.OpInputs[result.Name])}");
                 }
             }
-            */
         }
         return (coordArrayList, connectionArrayList);
     }
@@ -144,27 +155,21 @@ public class Layout {
             return float.PositiveInfinity;
         }
         var sorted = new float[t.Length];
-        var indices = new int[t.Rank];
-        for (var i = 0; i < sorted.Length; i++) {
-            sorted[i] = Math.Abs(t[indices]);
-            indices[0]++;
-            for (var j = 0; j < t.Rank - 1; j++) {
-                if (indices[j] < t.Dimensions[j]) {
-                    break;
-                }
-                indices[j] = 0;
-                indices[j + 1]++;
-            }
+        var i = 0;
+        foreach (var x in t) {
+            sorted[i] = Math.Abs(x);
+            i++;
         }
         
         Array.Sort(sorted);
         var cutoff = sorted[Math.Max(0, sorted.Length - maxNeuronsPerTensor)];
+        Debug.Log($"Cutoff: {cutoff}. {sorted[0]} {sorted[sorted.Length-1]}");
         return cutoff;
     }
 
-    static CoordArrays CreateElementwiseConnections(int[] inputDims, int[] outputDims, CoordArrays coordArrays0, CoordArrays coordArrays1)
+    static CoordArrays CreateElementwiseConnections(int[] inputDims, int[] outputDims, int layer0, int posInLayer0, int layer1, int posInLayer1, int maxConnectionsPerTensor, System.Random random, DenseTensor<float> t0, DenseTensor<float> t1, float cutoff)
     {
-        var coordArrays = new CoordArrays(2 * coordArrays0.Positions.Length);
+        var coordArrays = new CoordArrays(maxConnectionsPerTensor * 2);
  
         // Display an error and skip if the tensors are different shapes
         if (!inputDims.SequenceEqual(outputDims)) {
@@ -173,16 +178,32 @@ public class Layout {
         }
 
         var indices = new int[outputDims.Length];
-        for (var i = 0; i < coordArrays0.Positions.Length; i++) {
-            var position0 = coordArrays0.Positions[i];
-            var position1 = coordArrays1.Positions[i];
-            var color0 = coordArrays0.Colors[i];
-            var color1 = coordArrays1.Colors[i];
+        var coordI = 0;
+        for (var i = 0; i < t0.Length; i++) {
+            if (Math.Abs(t0[indices]) <= cutoff || Math.Abs(t1[indices]) <= cutoff) {
+                indices[0]++;
+                for (var j = 0; j < outputDims.Length - 1; j++) {
+                    if (indices[j] < outputDims[j]) {
+                        break;
+                    }
+                    indices[j] = 0;
+                    indices[j + 1]++;
+                }
+                continue;
+            }
+            if (coordI >= maxConnectionsPerTensor) {
+                Debug.LogWarning("Too many connections");
+                break;
+            }
+            var positions = CreateConnectionCoords(layer0, posInLayer0, indices, layer1, posInLayer1, indices);
+            var color0 = new Color((float)random.NextDouble(), (float)random.NextDouble(), (float)random.NextDouble());
+            var color1 = new Color((float)random.NextDouble(), (float)random.NextDouble(), (float)random.NextDouble());
 
-            coordArrays.Positions[2*i] = position0;
-            coordArrays.Positions[2*i+1] = position1;
-            coordArrays.Colors[2*i] = color0;
-            coordArrays.Colors[2*i+1] = color1;
+            coordArrays.Positions[2*coordI] = positions.Item1;
+            coordArrays.Positions[2*coordI+1] = positions.Item2;
+            coordArrays.Colors[2*coordI] = color0;
+            coordArrays.Colors[2*coordI+1] = color1;
+            coordI++;
 
             indices[0]++;
             for (var j = 0; j < outputDims.Length - 1; j++) {
@@ -193,6 +214,13 @@ public class Layout {
                 indices[j + 1]++;
             }
         }
+        coordArrays.Trim(2 * coordI);
         return coordArrays;
+    }
+
+    static (Vector3, Vector3) CreateConnectionCoords(int layer0, int posInLayer0, int[] ix0, int layer1, int posInLayer1, int[] ix1) {
+        var pos0 = Position(layer0, ix0, TensorPosition(posInLayer0));
+        var pos1 = Position(layer1, ix1, TensorPosition(posInLayer1));
+        return (pos0, pos1);
     }
 }
