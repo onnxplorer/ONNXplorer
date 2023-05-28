@@ -12,4 +12,24 @@ public class Neuron {
     //THINK Mark/indicate/flag some of these as more transient than others?
     public float weight;
     public float activation;
+
+    //DUMMY Color (and maybe size) depends somehow on weight/activation
+
+    public Neuron() {
+        this.point = new PointRef();
+        this.weight = 1;
+        this.activation = 0;
+    }
+
+    public Neuron(Vector3 v, float weight, float activation) {
+        this.point = new PointRef(v, Color.white);
+        this.weight = weight;
+        this.activation = activation;
+    }
+
+    public Neuron(PointRef point, float weight, float activation) {
+        this.point = point;
+        this.weight = weight;
+        this.activation = activation;
+    }
 }
