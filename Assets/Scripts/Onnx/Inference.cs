@@ -28,6 +28,7 @@ public class Inference {
                 usefulInfo = Manipulate.ModifyOnnxFile(modelPath, modifiedModelPath);
                 Debug.Log("Model modified");
                 modelPath = modifiedModelPath;
+                inputs.Add(NamedOnnxValue.CreateFromTensor<float>("input", CreateTensorFromKitten()));
                 labels = LoadLabels(); //THINK Not sure if this is only for mobilenet or what
                 break;
             }
