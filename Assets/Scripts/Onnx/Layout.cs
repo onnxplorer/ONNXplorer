@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 
 public class Layout {
-    public const float LITTLE_LINE_LENGTH = 0.01f;
     public const float LAYER_SX = 0.1f; //DUMMY This should probably normally be 1f or something, or maybe computed
     public static readonly float[] OFFSET = { 0.5f, 0.5f, 0.5f };
     public const float BF = 0.01f; // Sorta depends on how wide the tensors are...
@@ -68,7 +67,7 @@ public class Layout {
             var t = t0.ToDenseTensor();
             var cutoff = NeuronCutoff(t, maxNeuronsPerTensor);
 
-            var coordArrays = new CoordArrays(2 * t0.Length);
+            var coordArrays = new CoordArrays(t0.Length);
 
             var indices = new int[t.Rank];
             var layerNum = info.LayerNums[result.Name];
@@ -85,13 +84,8 @@ public class Layout {
                 var position = Position(layerNum, indices, tensorPos);
                 var color = Color(activation);
 
-                coordArrays.Positions[2*coordI] = position;
-                coordArrays.Colors[2*coordI] = color;
-
-                var position2 = new Vector3(position.x, position.y + LITTLE_LINE_LENGTH, position.z);
-
-                coordArrays.Positions[2*coordI+1] = position2;
-                coordArrays.Colors[2*coordI+1] = color;
+                coordArrays.Positions[coordI] = position;
+                coordArrays.Colors[coordI] = color;
 
                 indices[0]++;
                 for (var j = 0; j < t.Rank - 1; j++) {
