@@ -236,13 +236,54 @@ public class TensorInfo {
                 result = fromConstant(node, tensors);
                 bag.Clear();
             } else if (node.OpType == "Conv") {
+                var autopad = bag.PullString("auto_pad", null);
+                var strides = bag.PullInts("strides", new long[] { 1, 1 });
+                var kernel_shape = bag.PullRequiredInts("kernel_shape");
+                long[] pads;
+                if (autopad == null || "NOTSET".Equals(autopad)) {
+                    pads = bag.PullInts("pads", new long[] { 0, 0, 0, 0 });
+                } else {
+                    var x = tensors[node.Input[0]];
+                    pads = new long[] { 0, 0, 0, 0 };
+                    //MISC Frankly, I'm not entirely convinced about ignoring the first two dimensions, here.  But the model data itself even sortof agrees with it, so whatever.
+                    for (int d = 0; d < 2; d++) {
+                        var output_shape_i = (int)Math.Ceiling(x.d[2+d] * 1f / strides[d]); // As per documentation
+                        // output_shape_i = (input_dims[d] - kernel_shape[d] + pads[d] + pads[2 + d]) / strides[d] + 1;
+                        // output_shape_i - 1 = (input_dims[d] - kernel_shape[d] + pads[d] + pads[2 + d]) / strides[d];
+                        // (output_shape_i - 1)*strides[d] = input_dims[d] - kernel_shape[d] + pads[d] + pads[2 + d];
+                        // (output_shape_i - 1)*strides[d] - input_dims[d] + kernel_shape[d] =  + pads[d] + pads[2 + d];
+                        var padding = (output_shape_i - 1) * strides[d] - x.d[2+d] + kernel_shape[d];
+                        if (padding % 2 == 0) {
+                            // Even
+                            pads[d] = padding / 2;
+                            pads[d+2] = padding / 2;
+                        } else {
+                            switch (autopad) {
+                                case "SAME_UPPER":
+                                    pads[d] = (padding / 2);
+                                    pads[d+2] = (padding / 2)+1;
+                                    break;
+                                case "SAME_LOWER":
+                                    pads[d] = (padding / 2)+1;
+                                    pads[d+2] = (padding / 2);
+                                    break;
+                                case "VALID":
+                                    Debug.LogError($"Docs don't explain what to do with VALID");
+                                    break;
+                                default:
+                                    Debug.LogError($"Unhandled auto_pad {autopad}");
+                                    break;
+                            }
+                        }
+                    }
+                }
                 result = FromConv(
                     node,
                     tensors,
                     bag.PullInt("group", 1),
-                    bag.PullRequiredInts("kernel_shape"),
-                    bag.PullInts("pads", new long[] { 0, 0, 0, 0 }),
-                    bag.PullInts("strides", new long[] { 1, 1 }),
+                    kernel_shape,
+                    pads,
+                    strides,
                     bag.PullInts("dilations", new long[] { 0, 0 }),
                     random,
                     layer

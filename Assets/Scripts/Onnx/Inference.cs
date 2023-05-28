@@ -13,37 +13,44 @@ using System.Text;
 public class Inference {
     Thread thread;
 
-    public (List<Neuron>, List<Connection>) run(Consumer<(List<Neuron>, List<Connection>)> callback, int breakEarly = 1) {
+    public (List<Neuron>, List<Connection>) run(Consumer<(List<Neuron>, List<Connection>)> callback, int testCase = 2, int breakEarly = 1) {
         Debug.Log("Start function called");
         string modelPath;
         DenseTensor<float> tensor;
-        string inputName;
-        var labels = LoadLabels(); //THINK Not sure if this is only for mobilenet or what
-        switch (1) {
+        var inputs = new List<NamedOnnxValue>();
+        List<string> labels;
+        switch (testCase) {
             case -1: {
-                    tensor = RandomTensor(new[] { 2, 2 });
-                    Debug.Log(PrintTensor(tensor));
-                    return (null, null);
+                tensor = RandomTensor(new[] { 2, 2 });
+                Debug.Log(PrintTensor(tensor));
+                return (null, null);
             }
             case 0: { // mobilenetv2
                 modelPath = "models/mobilenetv2-10.onnx";
-                tensor = CreateTensorFromKitten();
-                inputName = "input";
+                inputs.Add(NamedOnnxValue.CreateFromTensor<float>("input", CreateTensorFromKitten()));
+                labels = LoadLabels(); //THINK Not sure if this is only for mobilenet or what
                 break;
             }
             case 1: { // test_sigmoid
                 modelPath = "models/test_sigmoid.onnx";
-                tensor = RandomTensor(new[] { 3, 4, 5 });
-                inputName = "x";
+                inputs.Add(NamedOnnxValue.CreateFromTensor<float>("x", RandomTensor(new[] { 3, 4, 5 })));
                 labels = null;
                 break;
+            }
+            case 2: { // test_conv_with_autopad_same
+                modelPath = "models/test_conv_with_autopad_same.onnx";
+                inputs.Add(NamedOnnxValue.CreateFromTensor<float>("x", RandomTensor(new[] { 1, 1, 5, 5 })));
+                inputs.Add(NamedOnnxValue.CreateFromTensor<float>("W", RandomTensor(new[] { 1, 1, 3, 3 })));
+                labels = null;
+                break;
+            }
+            default: {
+                Debug.LogWarning("Unhandled test case number: " + testCase);
+                return (null, null);
             }
         }
         var session = new InferenceSession(modelPath);
         Debug.Log("Session created");
-        var inputs = new List<NamedOnnxValue> {
-                NamedOnnxValue.CreateFromTensor<float>(inputName, tensor)
-            };
         Debug.Log("Input created");
         using (var results = session.Run(inputs)) {
             Debug.Log("Results created");

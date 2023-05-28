@@ -39,6 +39,17 @@ public class AttrBag {
         return def;
     }
 
+    public string PullString(string name, string def) {
+        for (var i = 0; i < attrs.Count; i++) {
+            if (attrs[i].Name == name) {
+                var result = attrs[i].S;
+                attrs.RemoveAt(i);
+                return result.ToStringUtf8();
+            }
+        }
+        return def;
+    }
+
     public int Count {
         get {
             return attrs.Count;

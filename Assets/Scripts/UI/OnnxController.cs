@@ -270,7 +270,7 @@ public class OnnxController : MonoBehaviour {
 
         if (TEST_ONNX) {
             t.push("onnx");
-            var inf = new Inference().run(null, int.MaxValue);
+            var inf = new Inference().run(null, 2, int.MaxValue);
             t.log("got result: " + inf);
 
             Network net = new Network();
