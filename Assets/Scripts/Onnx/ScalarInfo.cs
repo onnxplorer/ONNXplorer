@@ -64,7 +64,7 @@ public class ScalarInfo {
         return result;
     }
 
-    public const float LAYER_SX = 0.1f; //DUMMY This should probably normally be 1f or something, or maybe computed
+    public const float LAYER_SX = 1f; //DUMMY This should probably normally be 1f or something, or maybe computed
     public static readonly float[] OFFSET = { 0.5f, 0.5f, 0.5f };
     public const float BF = 0.01f; // Sorta depends on how wide the tensors are...
     public static readonly float[,] BASIS = { //RAINY There's probably a nice math library we've already imported that would make the multiplication more efficient or something
