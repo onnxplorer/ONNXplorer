@@ -13,6 +13,7 @@ public class TensorInfo {
     bool is_constant;
     int layer;
     ScalarInfo[,,,] scalars;
+    List<ScalarInfo> hiddenScalars;
 
     public int Rank {
         get { return d.Length; }
@@ -22,8 +23,19 @@ public class TensorInfo {
         get { return Product(d); }
     }
 
-    public ScalarInfo[,,,] Scalars {
-        get { return scalars; }
+    public List<ScalarInfo> GetAllScalars() {
+        List<ScalarInfo> result = new List<ScalarInfo>();
+        if (scalars != null) {
+            foreach (var s in scalars) {
+                result.Add(s);
+            }
+        }
+        if (hiddenScalars != null) {
+            foreach (var s in hiddenScalars) {
+                result.Add(s);
+            }
+        }
+        return result;
     }
 
     public int GetDim(int i) {
@@ -302,6 +314,7 @@ public class TensorInfo {
         Debug.Log($"Group: {group}, kernel_shape: {string.Join(",", kernel_shape)}, pads: {string.Join(",", pads)}, strides: {string.Join(",", strides)}");
 
         var opcount = 0;
+        var hidden = new List<ScalarInfo>();
         if (x.scalars != null && w.scalars != null) {
             result.scalars = new ScalarInfo[result.d[0], result.d[1], result.d[2], result.d[3]];
             for (int instance = 0; instance < n; instance++) {
@@ -309,7 +322,7 @@ public class TensorInfo {
                     var g = output_channel / (w.d[0] / group);
                     for (int output_y = 0; output_y < output_dims[0]; output_y++) {
                         for (int output_x = 0; output_x < output_dims[1]; output_x++) {
-                            var sum = ScalarInfo.FromFloat(0);
+                            var list_to_sum = new List<ScalarInfo>();
                             for (int input_channel = 0; input_channel < w.d[1]; input_channel++) {
                                 for (int kernel_y = 0; kernel_y < kernel_shape[0]; kernel_y++) {
                                     for (int kernel_x = 0; kernel_x < kernel_shape[1]; kernel_x++) {
@@ -319,7 +332,8 @@ public class TensorInfo {
                                             var xscal = x.scalars[instance, g * w.d[1] + input_channel, input_y, input_x];
                                             var wscal = w.scalars[output_channel, input_channel, kernel_y, kernel_x];
                                             var product = ScalarInfo.MulFloats(layer, random, xscal, wscal);
-                                            sum = ScalarInfo.AddFloats(layer, random, sum, product);
+                                            hidden.Add(product);
+                                            list_to_sum.Add(product);
                                             opcount += 1;
                                             if (opcount % 1000000 == 0) {
                                                 Debug.Log($"Opcount: {opcount}");
@@ -329,14 +343,16 @@ public class TensorInfo {
                                 }
                             }
                             if (b != null) {
-                                sum = ScalarInfo.AddFloats(layer, random, sum, b.scalars[output_channel,0,0,0]);
+                                list_to_sum.Add(b.scalars[output_channel,0,0,0]);
                             }
+                            var sum = ScalarInfo.SumFloats(layer, random, list_to_sum);
                             result.scalars[instance, output_channel, output_y, output_x] = sum;
                         }
                     }
                 }
             }
         }
+        result.hiddenScalars = hidden;
 
         return result;
     }
