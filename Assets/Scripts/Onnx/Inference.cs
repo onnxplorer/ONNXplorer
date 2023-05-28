@@ -17,7 +17,12 @@ public class Inference : MonoBehaviour
     {
         Debug.Log("Start function called");
         string modelPath = "models/mobilenetv2-10.onnx";
-        var session = new InferenceSession(modelPath);
+        string modifiedModelPath = "models/mobilenetv2-10-modified.onnx";
+
+        var usefulInfo = Manipulate.ModifyOnnxFile(modelPath, modifiedModelPath);
+        Debug.Log("Model modified");
+
+        var session = new InferenceSession(modifiedModelPath);
         Debug.Log("Session created");
         var labels = LoadLabels();
         var tensor = CreateTensorFromKitten();
@@ -28,19 +33,40 @@ public class Inference : MonoBehaviour
         Debug.Log("Input created");
         using (var results = session.Run(inputs))
         {
-            Debug.Log("Results created");
-            foreach (var result in results)
-            {
-                var t = result.AsTensor<float>().ToDenseTensor();
-                PrintTensor(t, labels);
+            Debug.Log($"Results created. There are {results.Count} results.");
+            foreach (var result in results) {
+                if (result.Name == usefulInfo.OriginalOutputs[0]) {
+                    var t = result.AsTensor<float>().ToDenseTensor();
+                    PrintTensor(t, labels);
+                }
             }
+            long totalCount = 0;
+            foreach (var result in results) {
+                if (result.ValueType == OnnxValueType.ONNX_TYPE_TENSOR) {
+                    var t0 = result.AsTensor<float>();
+                    if (t0 == null) {
+                        Debug.LogError($"Result {result.Name} is null");
+                        continue;
+                    }
+                    var t = t0.ToDenseTensor();
+                    var dims = "";
+                    foreach (var dim in t.Dimensions) {
+                        dims += $"{dim}, ";
+                    }
+                    Debug.Log($"Result {result.Name} has shape {dims} length {t.Length}");
+                    totalCount += t.Length;
+                } else {
+                    Debug.Log($"Result {result.Name} has type {result.ValueType}");
+                }
+            }
+            Debug.Log($"Total count: {totalCount}");
         }
 
-        var dim_params = new Dictionary<string, long>();
-        dim_params.Add("batch_size", 1);
+        // var dim_params = new Dictionary<string, long>();
+        // dim_params.Add("batch_size", 1);
 
-        thread = new Thread(new ThreadStart(() => OnnxHelper.CreateModelProto(modelPath, dim_params)));
-        thread.Start();
+        // thread = new Thread(new ThreadStart(() => OnnxHelper.CreateModelProto(modelPath, dim_params)));
+        // thread.Start();
     }
 
     List<string> LoadLabels() {
