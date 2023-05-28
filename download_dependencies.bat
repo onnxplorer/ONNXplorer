@@ -34,7 +34,7 @@ rm 4.5.2
 
 mv Assets/packages/unsafe/lib/netstandard2.0 zzz_temp_download
 rm -r Assets/packages/unsafe/lib
-mkdir -p Assets\packages\unsafe\lib
+mkdir Assets\packages\unsafe\lib
 mv zzz_temp_download Assets/packages/unsafe/lib/netstandard2.0
 rm -r Assets/packages/unsafe/ref
 

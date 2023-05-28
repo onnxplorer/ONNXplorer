@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -9,6 +10,7 @@ public class OnnxController : MonoBehaviour {
     public bool TEST_LINES_UPDATE_1N = false;
     public bool TEST_POINTS_UPDATE_1N = false;
     public bool TEST_NET = false;
+    public bool TEST_ONNX = false;
 
     public Renderer renderer;
 
@@ -256,6 +258,27 @@ public class OnnxController : MonoBehaviour {
         if (TEST_NET) {
             t.push("net");
             StartCoroutine(testUpdateNet());
+            t.pop();
+        }
+
+        if (TEST_ONNX) {
+            t.push("onnx");
+            var inf = new Inference().run();
+            t.log("got result: " + inf);
+
+            Network net = new Network();
+            //DUMMY Add batch point processing
+            //var batch = renderer.startLines(); //CHECK This could over-allocate memory
+            foreach (Neuron n in inf.Item1) {
+                net.neurons.Add(n);
+            }
+            foreach (Connection c in net.connections) {
+                net.addConnection(c);
+            }
+
+            renderer.addPoints(net.neurons.Select(n => n.point).ToArray());
+            renderer.addLines(net.connections.Select(c => c.line).ToArray());
+
             t.pop();
         }
 

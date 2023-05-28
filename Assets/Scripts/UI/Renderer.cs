@@ -261,6 +261,85 @@ public class Renderer : MonoBehaviour {
         return pointRef;
     }
 
+    public PointRef[] addPoints(PointRef[] points) {
+        Vector3[] newVertices = lineMesh.vertices;
+        Color[] newColors = lineMesh.colors;
+
+        int newIndex = newVertices.Length;
+        {
+            Vector3[] newVertexArray = new Vector3[newVertices.Length + points.Length * 24];
+            Color[] newColorArray = new Color[newColors.Length + points.Length * 24];
+            newVertices.CopyTo(newVertexArray, 0);
+            newColors.CopyTo(newColorArray, 0);
+            for (int i = 0; i < points.Length; i++) {
+                var pos = points[i].v;
+                var color = points[i].c;
+                float hs = points[i].size / 2;
+
+                var xyz = new Vector3(pos.x - hs, pos.y - hs, pos.z - hs);
+                var xyZ = new Vector3(pos.x - hs, pos.y - hs, pos.z + hs);
+                var xYz = new Vector3(pos.x - hs, pos.y + hs, pos.z - hs);
+                var xYZ = new Vector3(pos.x - hs, pos.y + hs, pos.z + hs);
+                var Xyz = new Vector3(pos.x + hs, pos.y - hs, pos.z - hs);
+                var XyZ = new Vector3(pos.x + hs, pos.y - hs, pos.z + hs);
+                var XYz = new Vector3(pos.x + hs, pos.y + hs, pos.z - hs);
+                var XYZ = new Vector3(pos.x + hs, pos.y + hs, pos.z + hs);
+
+                int j = 0;
+                newVertexArray[newVertices.Length + 24*i + j] = xyz; j++;
+                newVertexArray[newVertices.Length + 24*i + j] = xYz; j++;
+                newVertexArray[newVertices.Length + 24*i + j] = xyz; j++;
+                newVertexArray[newVertices.Length + 24*i + j] = xyZ; j++;
+                newVertexArray[newVertices.Length + 24*i + j] = xYZ; j++;
+                newVertexArray[newVertices.Length + 24*i + j] = xYz; j++;
+                newVertexArray[newVertices.Length + 24*i + j] = xYZ; j++;
+                newVertexArray[newVertices.Length + 24*i + j] = xyZ; j++;
+                newVertexArray[newVertices.Length + 24*i + j] = Xyz; j++;
+                newVertexArray[newVertices.Length + 24*i + j] = XYz; j++;
+                newVertexArray[newVertices.Length + 24*i + j] = Xyz; j++;
+                newVertexArray[newVertices.Length + 24*i + j] = XyZ; j++;
+                newVertexArray[newVertices.Length + 24*i + j] = XYZ; j++;
+                newVertexArray[newVertices.Length + 24*i + j] = XYz; j++;
+                newVertexArray[newVertices.Length + 24*i + j] = XYZ; j++;
+                newVertexArray[newVertices.Length + 24*i + j] = XyZ; j++;
+                newVertexArray[newVertices.Length + 24*i + j] = xyz; j++;
+                newVertexArray[newVertices.Length + 24*i + j] = Xyz; j++;
+                newVertexArray[newVertices.Length + 24*i + j] = xYz; j++;
+                newVertexArray[newVertices.Length + 24*i + j] = XYz; j++;
+                newVertexArray[newVertices.Length + 24*i + j] = xyZ; j++;
+                newVertexArray[newVertices.Length + 24*i + j] = XyZ; j++;
+                newVertexArray[newVertices.Length + 24*i + j] = xYZ; j++;
+                newVertexArray[newVertices.Length + 24*i + j] = XYZ; j++;
+
+                for (int k = 0; k < 24; k++) {
+                    newColorArray[newColors.Length + 24 * i + k] = color;
+                }
+            }
+            newVertices = newVertexArray;
+            newColors = newColorArray;
+        }
+
+        lineMesh.vertices = newVertices;
+        lineMesh.colors = newColors;
+
+        int[] newIndices = lineMesh.GetIndices(0);
+        int[] additionalIndices = new int[points.Length*24];
+        for (int i = 0; i < points.Length; i++) {
+            points[i]._idx = newIndex + 24 * i + 0;
+            points[i]._flagDirty = flagDirty;
+            for (int j = 0; j < 24; j++) {
+                additionalIndices[24*i+j] = newIndex + 24*i+j;
+            }
+        }
+        newIndices = AddToArray(newIndices, additionalIndices);
+        lineMesh.SetIndices(newIndices, MeshTopology.Lines, 0);
+
+        lineMesh.RecalculateBounds();
+        //lineMesh.RecalculateNormals();
+
+        return points;
+    }
+
     public LineRef addLine(Vector3 pos1, Vector3 pos2) {
         return addLine(pos1, Color.white, pos2, Color.white);
     }
