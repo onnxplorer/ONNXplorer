@@ -263,7 +263,7 @@ public class TensorInfo {
         result.layer = layer;
         result.tensor_name = node.Output[output_index];
         result.op_name = node.Name;
-        Debug.Log($"{node.OpType} Input dims: {input_string}. Output dims: {string.Join(",", result.d)}. Layer {result.layer}");
+        Debug.Log($"{node.OpType} Input dims: {input_string}. Output dims: {string.Join(",", result.d)}. Layer {result.layer}. Scalars {result.scalars != null}. Constant {result.is_constant}");
         bag.GripeIfNonempty(node.OpType);
         return result;
     }
@@ -294,6 +294,7 @@ public class TensorInfo {
         result.d = new long[]{n, output_c, output_dims[0], output_dims[1]};
         Debug.Log($"Group: {group}, kernel_shape: {string.Join(",", kernel_shape)}, pads: {string.Join(",", pads)}, strides: {string.Join(",", strides)}");
 
+        var opcount = 0;
         if (x.scalars != null && w.scalars != null) {
             result.scalars = new ScalarInfo[result.d[0], result.d[1], result.d[2], result.d[3]];
             for (int instance = 0; instance < n; instance++) {
@@ -309,12 +310,16 @@ public class TensorInfo {
                                         if (input_y >= 0 && input_y < input_dims[0] && input_x >= 0 && input_x < input_dims[1]) {
                                             var product = ScalarInfo.MulFloats(layer, random, x.scalars[instance, input_channel, input_y, input_x], w.scalars[output_channel, input_channel, kernel_y, kernel_x]);
                                             sum = ScalarInfo.AddFloats(layer, random, sum, product);
+                                            opcount += 1;
+                                            if (opcount % 1000000 == 0) {
+                                                Debug.Log($"Opcount: {opcount}");
+                                            }
                                         }
                                     }
                                 }
                             }
                             if (b != null) {
-                                throw new NotImplementedException("Conv bias");
+                                sum = ScalarInfo.AddFloats(layer, random, sum, b.scalars[output_channel,0,0,0]);
                             }
                             result.scalars[instance, output_channel, output_y, output_x] = sum;
                         }

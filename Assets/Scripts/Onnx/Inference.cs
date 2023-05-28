@@ -2,12 +2,15 @@
 using System.Collections.Generic;
 using System.IO;
 using System;
+using System.Threading;
 using UnityEngine;
 
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 
 public class Inference {
+	Thread thread;
+	
     public (List<Neuron>, List<Connection>) run() {
         Debug.Log("Start function called");
         string modelPath = "models/mobilenetv2-10.onnx";
@@ -30,7 +33,11 @@ public class Inference {
         var dim_params = new Dictionary<string, long>();
         dim_params.Add("batch_size", 1);
 
-        return OnnxHelper.CreateModelProto(modelPath, dim_params);
+		asdf;
+		//return OnnxHelper.CreateModelProto(modelPath, dim_params);
+
+        thread = new Thread(new ThreadStart(() => OnnxHelper.CreateModelProto(modelPath, dim_params)));
+        thread.Start();
     }
 
     List<string> LoadLabels() {
