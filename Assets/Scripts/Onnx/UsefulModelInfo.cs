@@ -7,4 +7,5 @@ public class UsefulModelInfo {
     public Dictionary<string, string> OpTypes;
     public Dictionary<string, string[]> OpInputs;
     public Dictionary<string, string> OpNames;
+    public HashSet<string> Constants;
 }

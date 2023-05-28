@@ -43,6 +43,14 @@ public class Layout {
         }
     }
 
+    static Color WeightColor(float weight) {
+        if (weight > 0) {
+            return new Color(0, weight, 0);
+        } else {
+            return new Color(-weight, -weight, 0);
+        }
+    }
+
     static Vector3 TensorPosition(int placeInLayer)
     {
         return new Vector3(0, placeInLayer, 0);
@@ -63,13 +71,18 @@ public class Layout {
 
             dimensions[result.Name] = t0.Dimensions.ToArray();
 
-            var opname = "";
-            info.OpNames.TryGetValue(result.Name, out opname);
-
             var t = t0.ToDenseTensor();
             tensorDict[result.Name] = t;
 
             var cutoff = NeuronCutoff(t, maxNeuronsPerTensor);
+
+            if (info.Constants.Contains(result.Name)) {
+                Debug.Log($"Constant Tensor Name = {result.Name}, Dimensions = {string.Join(", ", dimensions[result.Name])}");
+                continue;
+            }
+
+            var opname = "";
+            info.OpNames.TryGetValue(result.Name, out opname);
 
             var coordArrays = new CoordArrays(Math.Min(t0.Length, maxNeuronsPerTensor));
 
@@ -172,8 +185,6 @@ public class Layout {
 
     static CoordArrays CreateElementwiseConnections(int[] inputDims, int[] outputDims, int layer0, int layer1, int posInLayer0, int posInLayer1, int maxConnectionsPerTensor, System.Random random, DenseTensor<float> t0, DenseTensor<float> t1, float cutoff)
     {
-        var coordArrays = new CoordArrays(maxConnectionsPerTensor * 2);
- 
         // Display an error and skip if the tensors are different shapes
         if (!inputDims.SequenceEqual(outputDims)) {
             Debug.LogError($"Elementwise: Tensor has shape {string.Join(",",outputDims)} but other tensor has shape {string.Join(",",inputDims)}");
@@ -181,7 +192,7 @@ public class Layout {
         }
 
         var indices = new int[outputDims.Length];
-        var coordI = 0;
+        var pqueue = new PQueue<(Vector3,Vector3,Color),float>();
         for (var i = 0; i < t0.Length; i++) {
             if (Math.Abs(t0[indices]) <= cutoff || Math.Abs(t1[indices]) <= cutoff) {
                 indices[0]++;
@@ -194,19 +205,11 @@ public class Layout {
                 }
                 continue;
             }
-            if (coordI >= maxConnectionsPerTensor) {
-                Debug.LogWarning("Too many connections");
-                break;
-            }
-            var positions = CreateConnectionCoords(layer0, posInLayer0, indices, layer1, posInLayer1, indices);
-            var color0 = new Color((float)random.NextDouble(), (float)random.NextDouble(), (float)random.NextDouble());
-            var color1 = new Color((float)random.NextDouble(), (float)random.NextDouble(), (float)random.NextDouble());
-
-            coordArrays.Positions[2*coordI] = positions.Item1;
-            coordArrays.Positions[2*coordI+1] = positions.Item2;
-            coordArrays.Colors[2*coordI] = color0;
-            coordArrays.Colors[2*coordI+1] = color1;
-            coordI++;
+            var (pos0,pos1) = CreateConnectionCoords(layer0, posInLayer0, indices, layer1, posInLayer1, indices);
+            var color = new Color((float)random.NextDouble(), (float)random.NextDouble(), (float)random.NextDouble());
+            var pseudo_weight = (float)random.NextDouble();
+            
+            pqueue.Enqueue((pos0,pos1,color), pseudo_weight);
 
             indices[0]++;
             for (var j = 0; j < outputDims.Length - 1; j++) {
@@ -216,6 +219,17 @@ public class Layout {
                 indices[j] = 0;
                 indices[j + 1]++;
             }
+        }
+
+        var coordI = 0;
+        var coordArrays = new CoordArrays(pqueue.Count * 2);
+        while (pqueue.Count > 0) {
+            var (position0, position1, color) = pqueue.Dequeue();
+            coordArrays.Positions[2*coordI] = position0;
+            coordArrays.Colors[2*coordI] = color;
+            coordArrays.Positions[2*coordI+1] = position1;
+            coordArrays.Colors[2*coordI+1] = color;
+            coordI++;
         }
         coordArrays.Trim(2 * coordI);
         return coordArrays;
