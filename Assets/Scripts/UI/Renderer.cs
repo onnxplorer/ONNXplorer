@@ -8,6 +8,11 @@ public class Renderer : MonoBehaviour {
     private Mesh lineMesh;
     private HashSet<RenderElementRef> dirty = new HashSet<RenderElementRef>();
 
+    private List<MeshRenderer> singleMeshRenderers = new List<MeshRenderer>();
+    private List<MeshFilter> singleMeshFilters = new List<MeshFilter>();
+    private List<Mesh> singleMeshes = new List<Mesh>();
+    private HashSet<int> dirtySingles = new HashSet<int>();
+
     private void flagDirty(RenderElementRef r) {
         dirty.Add(r);
     }
@@ -15,6 +20,7 @@ public class Renderer : MonoBehaviour {
     public void recompute() {
         if (dirty.Count > 0) {
             var t = new Timing().push("Renderer recompute");
+            t.push("Shared mesh");
             t.log("Renderer recomputing " + dirty.Count + " elements");
             Vector3[] vs = lineMesh.vertices;
             Color[] cs = lineMesh.colors;
@@ -74,7 +80,62 @@ public class Renderer : MonoBehaviour {
             lineMesh.RecalculateBounds();
             //meshFilter.sharedMesh = lineMesh;
             t.pop();
+
+            t.push("Single meshes");
+            foreach (int i in dirtySingles) {
+                singleMeshes[i].vertices = singleMeshes[i].vertices;
+                singleMeshes[i].colors = singleMeshes[i].colors;
+                //THINK Also indices?
+                singleMeshes[i].RecalculateBounds();
+                //THINK Also possibly normals, IFF this is a triangles mesh
+            }
+            dirtySingles.Clear();
+            t.pop();
+
+            t.pop();
         }
+    }
+
+    public Runnable addWholeMesh(Vector3[] vertices, Color[] colors) {
+        int[] indices = new int[vertices.Length];
+        for (int i = 0; i < vertices.Length; i++) {
+            indices[i] = i;
+        }
+        return addWholeMesh(vertices, colors, indices);
+    }
+
+    //DUMMY The methods of updating are currently broken
+    public Runnable addWholeMesh(Vector3[] vertices, Color[] colors, int[] indices) {
+        GameObject lineObject = new GameObject();
+        lineObject.transform.parent = this.transform;
+
+        // Add the necessary components
+        var mr = lineObject.AddComponent<MeshRenderer>();
+        var mf = lineObject.AddComponent<MeshFilter>();
+
+        // Set up the material for the lines
+        mr.material = new Material(Shader.Find("Custom/LineShader"));
+
+        // Create the initial line mesh
+        var mesh = new Mesh();
+        mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32; //WARNING Note that this does not work on all systems, apparently...but probably most of them.
+
+        mesh.vertices = vertices;
+        mesh.vertices[0].x = 25;
+        vertices[1].x = -17;
+        mesh.vertices[2] = new Vector3(-1f,-2f,-3f);
+        mesh.colors = colors;
+        mesh.SetIndices(indices, MeshTopology.Lines, 0);
+
+        // Assign the initial mesh to the mesh filter
+        mf.mesh = mesh;
+
+        singleMeshRenderers.Add(mr);
+        singleMeshFilters.Add(mf);
+        singleMeshes.Add(mesh);
+        return () => {
+            dirtySingles.Add(singleMeshRenderers.Count-1);
+        };
     }
 
     private void Awake() {
