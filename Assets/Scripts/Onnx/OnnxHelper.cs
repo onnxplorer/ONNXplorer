@@ -29,7 +29,7 @@ public class OnnxHelper {
             for (int i = 0; i < op.Output.Count; i++) {
                 TensorInfo result = null;
                 try {
-                    result = TensorInfo.FromOperatorOutput(op, i, tensors);
+                    result = TensorInfo.FromOperatorOutput(op, i, tensors, random);
                 } catch (System.Exception e) {
                     Debug.LogError($"Error processing operator {op.Name}: {e}");
                 }

@@ -21,6 +21,10 @@ public class ScalarInfo {
         }
     }
 
+    public bool IsConstFloatZero() {
+        return op == ScalarOp.ConstFloat && constFloat == 0;
+    }
+
     public long AsConstInt() {
         if (op != ScalarOp.ConstInt) {
             throw new System.Exception("Not a const int");
@@ -75,13 +79,35 @@ public class ScalarInfo {
     }
 
     public static ScalarInfo AddFloats(int layer, System.Random random, ScalarInfo a, ScalarInfo b) {
-        if (a.IsZero())
+        if (a.IsConstFloatZero()) {
+            return b;
+        }
+        if (b.IsConstFloatZero()) {
+            return a;
+        }
         var result = Activation(layer, random);
         result.op = ScalarOp.AddFloat;
-        result.connections = new Connection[] {
-            new Connection(a.neuron, result.neuron),
-            new Connection(b.neuron, result.neuron)
-        };
+        if (a.neuron != null && b.neuron != null) {
+            result.connections = new Connection[] {
+                new Connection(a.neuron, result.neuron),
+                new Connection(b.neuron, result.neuron)
+            };
+        }
+        return result;
+    }
+
+    public static ScalarInfo MulFloats(int layer, System.Random random, ScalarInfo a, ScalarInfo b) {
+        if (a.IsConstFloatZero() || b.IsConstFloatZero()) {
+            return FromFloat(0);
+        }
+        var result = Activation(layer, random);
+        result.op = ScalarOp.MulFloat;
+        if (a.neuron != null && b.neuron != null) {
+            result.connections = new Connection[] {
+                new Connection(a.neuron, result.neuron),
+                new Connection(b.neuron, result.neuron)
+            };
+        }
         return result;
     }
 }

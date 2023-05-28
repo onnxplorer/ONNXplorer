@@ -201,9 +201,17 @@ public class TensorInfo {
         return result;
     }
 
-    public static TensorInfo FromOperatorOutput(NodeProto node, int output_index, Dictionary<string, TensorInfo> tensors) {
+    public static TensorInfo FromOperatorOutput(NodeProto node, int output_index, Dictionary<string, TensorInfo> tensors, System.Random random) {
         var bag = new AttrBag(node.Attribute);
         TensorInfo result = null;
+
+        var input_string = "";
+        var layer = 0;
+        foreach (var input in node.Input) {
+            layer = Math.Max(layer, tensors[input].layer + 1);
+            input_string += $"[{string.Join(",", tensors[input].d)}] ";
+        }
+
         if (output_index == 0) {
             if (node.OpType == "Add") {
                 result = fromAdd(node, tensors);
@@ -222,7 +230,9 @@ public class TensorInfo {
                     bag.PullRequiredInts("kernel_shape"),
                     bag.PullInts("pads", new long[]{0,0,0,0}),
                     bag.PullInts("strides", new long[]{1,1}),
-                    bag.PullInts("dilations", new long[]{0,0})
+                    bag.PullInts("dilations", new long[]{0,0}),
+                    random,
+                    layer
                 );
             } else if (node.OpType == "Gather") {
                 result = fromGather(node, tensors, bag.PullInt("axis", 0));
@@ -250,12 +260,6 @@ public class TensorInfo {
             Debug.LogError($"Unhandled operator type: {node.OpType} {output_index}");
             return null;
         }
-        var input_string = "";
-        var layer = 0;
-        foreach (var input in node.Input) {
-            layer = Math.Max(layer, tensors[input].layer + 1);
-            input_string += $"[{string.Join(",", tensors[input].d)}] ";
-        }
         result.layer = layer;
         result.tensor_name = node.Output[output_index];
         result.op_name = node.Name;
@@ -264,7 +268,7 @@ public class TensorInfo {
         return result;
     }
 
-    public static TensorInfo FromConv(NodeProto node, Dictionary<string, TensorInfo> tensors, long group, long[] kernel_shape, long[] pads, long[] strides, long[] dilations) {
+    public static TensorInfo FromConv(NodeProto node, Dictionary<string, TensorInfo> tensors, long group, long[] kernel_shape, long[] pads, long[] strides, long[] dilations, System.Random random, int layer) {
         Debug.Log("Processing conv");
         var result = new TensorInfo();
         var x = tensors[node.Input[0]];
@@ -296,22 +300,21 @@ public class TensorInfo {
                 for (int output_channel = 0; output_channel < output_c; output_channel++) {
                     for (int output_y = 0; output_y < output_dims[0]; output_y++) {
                         for (int output_x = 0; output_x < output_dims[1]; output_x++) {
-                            var sum = 0.0;
+                            var sum = ScalarInfo.FromFloat(0);
                             for (int input_channel = 0; input_channel < c; input_channel++) {
                                 for (int kernel_y = 0; kernel_y < kernel_shape[0]; kernel_y++) {
                                     for (int kernel_x = 0; kernel_x < kernel_shape[1]; kernel_x++) {
                                         var input_y = output_y * strides[0] + kernel_y - pads[0];
                                         var input_x = output_x * strides[1] + kernel_x - pads[2];
                                         if (input_y >= 0 && input_y < input_dims[0] && input_x >= 0 && input_x < input_dims[1]) {
-                                            var input_index = instance * c * input_dims[0] * input_dims[1] + input_channel * input_dims[0] * input_dims[1] + input_y * input_dims[1] + input_x;
-                                            var kernel_index = output_channel * c * kernel_shape[0] * kernel_shape[1] + input_channel * kernel_shape[0] * kernel_shape[1] + kernel_y * kernel_shape[1] + kernel_x;
-                                            sum += x.scalars[input_index] * w.scalars[kernel_index];
+                                            var product = ScalarInfo.MulFloats(layer, random, x.scalars[instance, input_channel, input_y, input_x], w.scalars[output_channel, input_channel, kernel_y, kernel_x]);
+                                            sum = ScalarInfo.AddFloats(layer, random, sum, product);
                                         }
                                     }
                                 }
                             }
                             if (b != null) {
-                                sum += b.scalars[output_channel];
+                                throw new NotImplementedException("Conv bias");
                             }
                             result.scalars[instance, output_channel, output_y, output_x] = sum;
                         }
