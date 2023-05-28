@@ -13,7 +13,7 @@ using System.Text;
 public class Inference {
     Thread thread;
 
-    public (List<Neuron>, List<Connection>) run(Consumer<(List<Neuron>, List<Connection>)> callback, int testCase = 2, int breakEarly = 1) {
+    public (List<Neuron>, List<Connection>) run(Consumer<(List<Neuron>, List<Connection>)> callback, int testCase = -2, int breakEarly = 1) {
         Debug.Log("Start function called");
         string modelPath;
         DenseTensor<float> tensor;
@@ -78,14 +78,18 @@ public class Inference {
             }
 
             if (usefulInfo != null) {
-                long totalCoordCount = 0;
-                var coordArrays = Layout.GetCoordArrays(usefulInfo, results);
+                long totalNeuronCoordCount = 0;
+                long totalConnectionCoordCount = 0;
+                var (neuronCoords, connectionCoords) = Layout.GetCoordArrays(usefulInfo, results);
 
-                foreach (var coordArray in coordArrays) {
-                    totalCoordCount += coordArray.Length;
+                foreach (var coordArray in neuronCoords) {
+                    totalNeuronCoordCount += coordArray.Length;
+                }
+                foreach (var coordArray in connectionCoords) {
+                    totalConnectionCoordCount += coordArray.Length;
                 }
 
-                Debug.Log($"Total coord count: {totalCoordCount}");
+                Debug.Log($"Total coord count. Neurons: {totalNeuronCoordCount}. Connections: {totalConnectionCoordCount}");
             }
         }
 

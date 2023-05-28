@@ -2,6 +2,7 @@ using Onnx;
 using System.Collections.Generic;
 using Google.Protobuf;
 using Google.Protobuf.Collections;
+using System.Linq;
 
 public class Manipulate {
     public static void AddActivationsToOutputs(ModelProto m, UsefulModelInfo info) {
@@ -22,6 +23,8 @@ public class Manipulate {
                 }
             }
             info.LayerNums[n.Output[0]] = layer;
+            info.OpTypes[n.Output[0]] = n.OpType;
+            info.OpInputs[n.Output[0]] = n.Input.ToArray();
 
             if (!layerTensorCounts.ContainsKey(layer)) {
                 layerTensorCounts[layer] = 0;
@@ -41,6 +44,8 @@ public class Manipulate {
         var info = new UsefulModelInfo();
         info.LayerNums = new Dictionary<string, int>();
         info.PlaceInLayer = new Dictionary<string, int>();
+        info.OpTypes = new Dictionary<string, string>();
+        info.OpInputs = new Dictionary<string, string[]>();
 
         var model = ModelProto.Parser.ParseFrom(System.IO.File.OpenRead(modelPath));
         AddActivationsToOutputs(model, info);
