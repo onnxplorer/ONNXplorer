@@ -12,6 +12,7 @@ public class OnnxController : MonoBehaviour {
     public bool TEST_POINTS_UPDATE_1N = false;
     public bool TEST_NET = false;
     public bool TEST_ONNX = false;
+    public bool TEST_SINGLE_MESH = false;
 
     public int TEST_CASE = 2;
     public int BREAK_ON_LAYER = int.MaxValue;
@@ -120,6 +121,34 @@ public class OnnxController : MonoBehaviour {
         t.pop();
     }
 
+    private IEnumerator testUpdateSingleMesh() {
+        int N = 10;
+        var t = new Timing().push("OnnxController testUpdateSingleMesh");
+        t.log("N = " + N);
+        Vector3[] vs = new Vector3[N*2];
+        Color[] cs = new Color[N*2];
+
+        for (int i = 0; i < N; i++) {
+            vs[2*i+0] = new Vector3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), Random.Range(-1f, 1f));
+            vs[2*i+1] = new Vector3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), Random.Range(-1f, 1f));
+            cs[2*i+0] = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
+            cs[2*i+1] = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
+        }
+        Runnable flagDirty = renderer.addWholeMesh(vs, cs);
+        t.log(N + " lines added");
+        while (true) {
+            yield return new WaitForSeconds(10f);
+            t.push("updating");
+            int i = Random.Range(0, N);
+            vs[2*i+0] += new Vector3(0.05f, 0.01f, 0f);
+            vs[2*i+1] += new Vector3(0.05f, 0.01f, 0f);
+            cs[2*i+0] = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
+            cs[2*i+1] = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
+            flagDirty();
+            t.pop();
+        }
+        t.pop();
+    }
     private IEnumerator testUpdateNet() {
         int N = 10;
         int C = 3;
@@ -269,6 +298,12 @@ public class OnnxController : MonoBehaviour {
         if (TEST_NET) {
             t.push("net");
             StartCoroutine(testUpdateNet());
+            t.pop();
+        }
+
+        if (TEST_SINGLE_MESH) {
+            t.push("single mesh");
+            StartCoroutine(testUpdateSingleMesh());
             t.pop();
         }
 
