@@ -17,12 +17,13 @@ public class OnnxHelper {
             tensors[input.Name] = TensorInfo.FromValueInfoProto(input, true, dim_params, random);
         }
 
-        // These are the weights.
+        // These are the weights (and maybe some constants).
         foreach (var init in model.Graph.Initializer) {
             tensors[init.Name] = TensorInfo.fromTensorProto(init);
         }
 
         // These are the operators which make up the bulk of the graph.
+        bool shouldBreak = false;
         foreach (var op in model.Graph.Node) {
             Debug.Log($"Processing operator {op.Name}");
             for (int i = 0; i < op.Output.Count; i++) {
@@ -34,9 +35,13 @@ public class OnnxHelper {
                 }
                 if (result == null) {
                     Debug.LogError("Bombing out");
+                    shouldBreak = true;
                     break;
                 }
                 tensors[op.Output[i]] = result;
+            }
+            if (shouldBreak) {
+                break;
             }
         }
 

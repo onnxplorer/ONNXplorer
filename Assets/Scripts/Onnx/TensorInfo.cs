@@ -1,6 +1,7 @@
 using Onnx;
 using System.Collections.Generic;
 using System;
+using System.Linq;
 using Google.Protobuf.Collections;
 using UnityEngine;
 
@@ -31,6 +32,39 @@ public class TensorInfo {
         } else {
             return 1;
         }
+    }
+
+    public static TensorInfo ZerosFloat(long[] d) {
+        var result = new TensorInfo();
+        result.d = d;
+        result.scalars = CreateScalars(d);
+        result.is_constant = true;
+        for (var x = 0; x < d[0]; x++) {
+            for (var y = 0; y < d[1]; y++) {
+                for (var z = 0; z < d[2]; z++) {
+                    for (var w = 0; w < d[3]; w++) {
+                        result.scalars[x, y, z, w] = ScalarInfo.FromFloat(0);
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    public TensorInfo MatrixTranspose() {
+        if (Rank != 2) {
+            throw new Exception("Rank must be 2 for MatrixTranspose");
+        }
+        TensorInfo result = new TensorInfo();
+        result.d = new long[]{d[1], d[0]};
+        result.scalars = new ScalarInfo[d[1], d[0], 1, 1];
+        for (var x = 0; x < d[1]; x++) {
+            for (var y = 0; y < d[0]; y++) {
+                result.scalars[x, y, 0, 0] = scalars[y, x, 0, 0];
+            }
+        }
+        result.is_constant = is_constant;
+        return result;
     }
 
     static ScalarInfo[,,,] CreateScalars(long[] d) {
@@ -193,6 +227,15 @@ public class TensorInfo {
                 );
             } else if (node.OpType == "Gather") {
                 result = fromGather(node, tensors, bag.PullInt("axis", 0));
+            } else if (node.OpType == "Gemm") {
+                result = FromGemm(
+                    node,
+                    tensors,
+                    bag.PullFloat("alpha", 1.0),
+                    bag.PullFloat("beta", 1.0),
+                    bag.PullInt("transA", 0),
+                    bag.PullInt("transB", 0)
+                );
             } else if (node.OpType == "GlobalAveragePool") {
                 result = fromGlobalAveragePool(node, tensors);
             } else if (node.OpType == "Reshape") {
@@ -273,14 +316,36 @@ public class TensorInfo {
         return result;
     }
 
-    private static (TensorInfo,TensorInfo) broadcast(TensorInfo a, TensorInfo b) {
+    private static (TensorInfo,TensorInfo) Broadcast(TensorInfo a, TensorInfo b) {
+        if (!a.d.SequenceEqual(b.d)) {
+            throw new NotImplementedException($"Broadcasting not implemented between {string.Join(",", a.d)} and {string.Join(",", b.d)}");
+        }
         return (a,b);
+    }
+
+    private TensorInfo BroadcastTo(long[] dims) {
+        if (dims.SequenceEqual(d)) {
+            return this;
+        } else if (this.Rank == 1 && dims.Length == 2 && dims[1] == d[0]) {
+            var result = new TensorInfo();
+            result.d = dims;
+            result.scalars = new ScalarInfo[dims[0], dims[1], 1, 1];
+            for (var x = 0; x < dims[0]; x++) {
+                for (var y = 0; y < dims[1]; y++) {
+                    result.scalars[x,y,0,0] = scalars[y,0,0,0];
+                }
+            }
+            result.is_constant = is_constant;
+            return result;
+        } else {
+            throw new NotImplementedException($"Broadcasting not implemented for {string.Join(",", d)} to {string.Join(",", dims)}");
+        }
     }
 
     private static TensorInfo fromAdd(NodeProto node, Dictionary<string, TensorInfo> tensors) {
         Debug.Log("Processing add");
         var result = new TensorInfo();
-        var (a,b) = broadcast(tensors[node.Input[0]], tensors[node.Input[1]]);
+        var (a,b) = Broadcast(tensors[node.Input[0]], tensors[node.Input[1]]);
         result.d = a.d;
         return result;
     }
@@ -519,6 +584,36 @@ public class TensorInfo {
         }
         var result = new TensorInfo();
         result.d = shape;
+        return result;
+    }
+
+    private static TensorInfo FromGemm(NodeProto node, Dictionary<string, TensorInfo> tensors, double alpha, double beta, long transA, long transB) {
+        var a = tensors[node.Input[0]];
+        var b = tensors[node.Input[1]];
+        if (a.Rank != 2 || b.Rank != 2) {
+            throw new Exception($"Rank should be 2 for Gemm, got {a.Rank} {b.Rank}");
+        }
+        if (transA != 0) {
+            a = a.MatrixTranspose();
+        }
+        if (transB != 0) {
+            b = b.MatrixTranspose();
+        }
+
+        if (a.d[1] != b.d[0]) {
+            throw new Exception("Middle dimension error for Gemm");
+        }
+
+        TensorInfo c = null;
+        var d = new long[]{a.d[0], b.d[1]};
+        if (node.Input.Count > 2) {
+            c = tensors[node.Input[2]].BroadcastTo(d);
+        } else {
+            c = ZerosFloat(d);
+        }
+
+        var result = new TensorInfo();
+        result.d = d;
         return result;
     }
 }
