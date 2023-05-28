@@ -55,3 +55,4 @@ Optimizations
         You can represent a cubic meter of cubic centimeters in 1,000,000 elements, might be ok
     Remove random neurons from the visualization?
       Seems bad, but also, if you're mainly after the overall structure, maybe it's fine
+    Subdividable blocks?  Like, Mul.  Zoom in to see the multiplications?

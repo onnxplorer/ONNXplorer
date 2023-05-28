@@ -23,7 +23,7 @@ public class TensorInfo {
         get { return Product(d); }
     }
 
-    public List<ScalarInfo> GetAllScalars() {
+    public List<ScalarInfo> GetAllScalars() { //NEXT Optionize include hidden?
         List<ScalarInfo> result = new List<ScalarInfo>();
         if (scalars != null) {
             foreach (var s in scalars) {
@@ -137,13 +137,13 @@ public class TensorInfo {
             }
         }
 
-        //THINK Are extra dimensions problematic?
+        //CHECK Are extra dimensions (>4) problematic?  Probably, if they happen
         result.scalars = CreateScalars(result.d);
         for (var x = 0; x < result.GetDim(0); x++) {
             for (var y = 0; y < result.GetDim(1); y++) {
                 for (var z = 0; z < result.GetDim(2); z++) {
                     for (var w = 0; w < result.GetDim(3); w++) {
-                        result.scalars[x,y,z,w] = ScalarInfo.InputActivation(result.layer, random);
+                        result.scalars[x,y,z,w] = ScalarInfo.InputActivation(result.layer, new[] { x, y, z, w }, random);
                     }
                 }
             }
@@ -334,7 +334,8 @@ public class TensorInfo {
                                         if (input_y >= 0 && input_y < input_dims[0] && input_x >= 0 && input_x < input_dims[1]) {
                                             var xscal = x.scalars[instance, g * w.d[1] + input_channel, input_y, input_x];
                                             var wscal = w.scalars[output_channel, input_channel, kernel_y, kernel_x];
-                                            var product = ScalarInfo.MulFloats(layer, random, xscal, wscal);
+                                            //CHECK I didn't really think too hard about these layerPosition values, not sure if they make sense
+                                            var product = ScalarInfo.MulFloats(layer, new[] { instance, output_channel, output_y, output_x, input_channel, kernel_y, kernel_x }, random, xscal, wscal);
                                             hidden.Add(product);
                                             list_to_sum.Add(product);
                                             opcount += 1;
@@ -348,7 +349,7 @@ public class TensorInfo {
                             if (b != null) {
                                 list_to_sum.Add(b.scalars[output_channel,0,0,0]);
                             }
-                            var sum = ScalarInfo.SumFloats(layer, random, list_to_sum);
+                            var sum = ScalarInfo.SumFloats(layer, new[] { instance, output_channel, output_y, output_x }, random, list_to_sum);
                             result.scalars[instance, output_channel, output_y, output_x] = sum;
                         }
                     }
@@ -387,7 +388,7 @@ public class TensorInfo {
                 for (var y = 0; y < result.GetDim(1); y++) {
                     for (var z = 0; z < result.GetDim(2); z++) {
                         for (var w = 0; w < result.GetDim(3); w++) {
-                            result.scalars[x,y,z,w] = ScalarInfo.ClipFloat(layer, random, input.scalars[x,y,z,w]);
+                            result.scalars[x,y,z,w] = ScalarInfo.ClipFloat(layer, new[] { x, y, z, w }, random, input.scalars[x,y,z,w]);
                         }
                     }
                 }
@@ -410,7 +411,9 @@ public class TensorInfo {
                 for (var y = 0; y < result.GetDim(1); y++) {
                     for (var z = 0; z < result.GetDim(2); z++) {
                         for (var w = 0; w < result.GetDim(3); w++) {
-                            result.scalars[x, y, z, w] = ScalarInfo.SigmoidFloat(layer, random, input.scalars[x, y, z, w]);
+                            //RAINY It bugs me that it just appends "1" for dimensions we don't have...and it kinda messes up the rendering.  ...So, the fix I came up with, hopefully it's not too heavy for this loop.
+                            //THINK Consider applying this logic to other places
+                            result.scalars[x, y, z, w] = ScalarInfo.SigmoidFloat(layer, (new[] { x, y, z, w }).Take(result.Rank).ToArray(), random, input.scalars[x, y, z, w]);
                         }
                     }
                 }

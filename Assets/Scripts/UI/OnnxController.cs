@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class OnnxController : MonoBehaviour {
+    public bool SHOW_ORIGIN = true;
     public bool TEST_LINES_CR = true;
     public bool TEST_STRESS = false;
     public bool TEST_LINES_UPDATE = false;
@@ -175,6 +176,12 @@ public class OnnxController : MonoBehaviour {
     // Start is called before the first frame update
     void Start() {
         var t = new Timing().push("OnnxController start");
+
+        if (SHOW_ORIGIN) {
+            renderer.addLine(Vector3.zero, Vector3.right, Color.red);
+            renderer.addLine(Vector3.zero, Vector3.up, Color.green);
+            renderer.addLine(Vector3.zero, Vector3.forward, Color.blue);
+        }
 
         if (TEST_STRESS) {
             t.push("stress");

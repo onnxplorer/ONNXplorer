@@ -58,16 +58,36 @@ public class ScalarInfo {
         throw new System.Exception($"Cannot process data type {tensor.DataType}");
     }
 
-    public static ScalarInfo InputActivation(int layer, System.Random random) {
-        ScalarInfo result = Activation(layer, random);
+    public static ScalarInfo InputActivation(int layer, int[] layerPosition, System.Random random) {
+        ScalarInfo result = Activation(layer, layerPosition, random);
         result.op = ScalarOp.InputFloat;
         return result;
     }
 
-    public static ScalarInfo Activation(int layer, System.Random random) {
+    public const float BF = 0.01f; // Sorta depends on how wide the tensors are...
+    public static readonly float[,] BASIS = { //RAINY There's probably a nice math library we've already imported that would make the multiplication more efficient or something
+        { 0f, 0f, BF },
+        { 0f, -BF, 0f },
+        { BF, -BF/3, BF/3 },
+        { BF/2, -BF/2, BF/2 },
+        { BF/4, BF/8, -BF/8 },
+        { -BF/8, BF/16, -BF/16 }, // These are quite arbitrary from here on
+        { BF/32, -BF/32, -BF/32 },
+        { -BF/64, -BF/64, BF/64 },
+    };
+
+    //THINK The indices are generally given as ints, but technically the dimensions are longs.  OTOH, a difference would mean having a tensor over like, 4 billion items long.  It's at least somewhat unlikely.
+    public static ScalarInfo Activation(int layer, int[] layerPosition, System.Random random) {
         float x = layer;
-        float y = (float)random.NextDouble();
-        float z = (float)random.NextDouble();
+        float y = 0;
+        float z = 0;
+        int j = 0;
+        for (int i = layerPosition.Length - 1; i >= 0; i--) {
+            x += BASIS[j, 0] * layerPosition[i];
+            y += BASIS[j, 1] * layerPosition[i];
+            z += BASIS[j, 2] * layerPosition[i];
+            j++; //SHAME shrug
+        }
         float r = (float)random.NextDouble();
         float g = (float)random.NextDouble();
         float b = (float)random.NextDouble();
@@ -79,14 +99,14 @@ public class ScalarInfo {
         return result;
     }
 
-    public static ScalarInfo AddFloats(int layer, System.Random random, ScalarInfo a, ScalarInfo b) {
+    public static ScalarInfo AddFloats(int layer, int[] layerPosition, System.Random random, ScalarInfo a, ScalarInfo b) {
         if (a.IsConstFloatZero()) {
             return b;
         }
         if (b.IsConstFloatZero()) {
             return a;
         }
-        var result = Activation(layer, random);
+        var result = Activation(layer, layerPosition, random);
         result.op = ScalarOp.AddFloat;
         result.connections = new List<Connection>();
         if (a.neuron != null) {
@@ -98,8 +118,8 @@ public class ScalarInfo {
         return result;
     }
 
-    public static ScalarInfo SumFloats(int layer, System.Random random, List<ScalarInfo> scalars) {
-        var result = Activation(layer, random);
+    public static ScalarInfo SumFloats(int layer, int[] layerPosition, System.Random random, List<ScalarInfo> scalars) {
+        var result = Activation(layer, layerPosition, random);
         result.op = ScalarOp.AddFloat;
         result.connections = new List<Connection>();
         foreach (var scalar in scalars) {
@@ -113,11 +133,11 @@ public class ScalarInfo {
         return result;
     }
 
-    public static ScalarInfo MulFloats(int layer, System.Random random, ScalarInfo a, ScalarInfo b) {
+    public static ScalarInfo MulFloats(int layer, int[] layerPosition, System.Random random, ScalarInfo a, ScalarInfo b) {
         if (a.IsConstFloatZero() || b.IsConstFloatZero()) {
             return FromFloat(0);
         }
-        var result = Activation(layer, random);
+        var result = Activation(layer, layerPosition, random);
         result.op = ScalarOp.MulFloat;
         result.connections = new List<Connection>();
         if (a.neuron != null) {
@@ -129,8 +149,8 @@ public class ScalarInfo {
         return result;
     }
 
-    public static ScalarInfo ClipFloat(int layer, System.Random random, ScalarInfo a) {
-        var result = Activation(layer, random);
+    public static ScalarInfo ClipFloat(int layer, int[] layerPosition, System.Random random, ScalarInfo a) {
+        var result = Activation(layer, layerPosition, random);
         result.op = ScalarOp.ClipFloat;
         result.connections = new List<Connection>();
         if (a.neuron != null) {
@@ -139,8 +159,8 @@ public class ScalarInfo {
         return result;
     }
 
-    public static ScalarInfo SigmoidFloat(int layer, System.Random random, ScalarInfo a) {
-        var result = Activation(layer, random);
+    public static ScalarInfo SigmoidFloat(int layer, int[] layerPosition, System.Random random, ScalarInfo a) {
+        var result = Activation(layer, layerPosition, random);
         result.op = ScalarOp.SigmoidFloat;
         result.connections = new List<Connection>();
         if (a.neuron != null) {
