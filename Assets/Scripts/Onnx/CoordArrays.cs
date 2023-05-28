@@ -9,4 +9,9 @@ public class CoordArrays {
             return Positions.Length;
         }
     }
+
+    public CoordArrays(long len) {
+        Positions = new Vector3[len];
+        Colors = new Color[len];
+    }
 }
