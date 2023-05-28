@@ -56,16 +56,14 @@ public class OnnxHelper {
         var connections = new List<Connection>();
         var seen = new HashSet<Neuron>();
         foreach (var tensor in tensors.Values) {
-            if (tensor.Scalars != null) {
-                foreach (var scalar in tensor.Scalars) {
-                    if (scalar.GetNeuron != null && !seen.Contains(scalar.GetNeuron)) {
-                        neurons.Add(scalar.GetNeuron);
-                        seen.Add(scalar.GetNeuron);
-                    }
-                    if (scalar.GetConnections != null) {
-                        foreach (var connection in scalar.GetConnections) {
-                            connections.Add(connection);
-                        }
+            foreach (var scalar in tensor.GetAllScalars()) {
+                if (scalar.GetNeuron != null && !seen.Contains(scalar.GetNeuron)) {
+                    neurons.Add(scalar.GetNeuron);
+                    seen.Add(scalar.GetNeuron);
+                }
+                if (scalar.GetConnections != null) {
+                    foreach (var connection in scalar.GetConnections) {
+                        connections.Add(connection);
                     }
                 }
             }
