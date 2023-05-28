@@ -1,4 +1,6 @@
-﻿fix .bat's to work on stock windows computers?
+﻿Improve READMEs
+Take demo videos
+fix .bat's to work on stock windows computers?
 
 draw lines
   advanced
@@ -6,12 +8,16 @@ draw lines
     remove
     clear
     ^mass add
+    ^REALLY mass add
 
 arrange neurons
-  by connection gravity
-  by some kind of model structure
+  permit runtime altering BASES
+  *by connection gravity
+  ^by some kind of model structure
 
   ^check max lines
     (16 bit, unless set index type, then 32 bit)
   ^basic
 ^grip move
+
+make Flashlight work with new fast rendering system
