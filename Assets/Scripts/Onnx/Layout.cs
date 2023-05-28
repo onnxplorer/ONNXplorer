@@ -156,7 +156,7 @@ public class Layout {
 
     static float NeuronCutoff(DenseTensor<float> t, int maxNeuronsPerTensor) {
         if (t.Length <= maxNeuronsPerTensor) {
-            return float.PositiveInfinity;
+            return -1;
         }
         var sorted = new float[t.Length];
         var i = 0;
