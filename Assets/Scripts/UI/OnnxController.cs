@@ -17,6 +17,7 @@ public class OnnxController : MonoBehaviour {
     public int BREAK_ON_LAYER = int.MaxValue;
 
     public Renderer renderer;
+    public Flashlight flashlight;
 
     private IEnumerator testAddLines() {
         for (int i = 0; i < 1000; i++) {
@@ -288,6 +289,8 @@ public class OnnxController : MonoBehaviour {
 
             renderer.addPoints(net.neurons.Select(n => n.point).ToArray());
             renderer.addLines(net.connections.Select(c => c.line).ToArray());
+
+            flashlight.network = net;
 
             t.pop();
         }
