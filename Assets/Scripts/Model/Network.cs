@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-class Network {
+public class Network {
     //THINK Sets instead of Lists?
     public List<Neuron> neurons = new List<Neuron>();
     public List<Connection> connections = new List<Connection>();
@@ -29,4 +29,17 @@ class Network {
             }
         }
     }
+    
+    /*
+     * vertices
+     *   +indices
+     * colors
+     *   +indices
+     * flagDirty
+     *   since WE'RE storing the arrays, no need to track which ones are dirty
+     * point size
+     * neuron weights
+     * neuron activations
+     * connection pairs
+     */
 }

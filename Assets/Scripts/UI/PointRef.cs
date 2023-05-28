@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 
 public class PointRef : RenderElementRef {
-    public const float DEFAULT_SIZE = 0.01f;
+    public const float DEFAULT_SIZE = 0.0025f;
 
     private Vector3 _v;
     public Vector3 v {

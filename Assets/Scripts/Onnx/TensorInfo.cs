@@ -23,7 +23,7 @@ public class TensorInfo {
         get { return Product(d); }
     }
 
-    public List<ScalarInfo> GetAllScalars() {
+    public List<ScalarInfo> GetAllScalars() { //NEXT Optionize include hidden?
         List<ScalarInfo> result = new List<ScalarInfo>();
         if (scalars != null) {
             foreach (var s in scalars) {
@@ -120,7 +120,7 @@ public class TensorInfo {
         return result;
     }
 
-    public static TensorInfo FromInput(ValueInfoProto value, Dictionary<string, long> dim_params, System.Random random = null) {
+    public static TensorInfo FromInput(ValueInfoProto value, Vector3 positionOffset, Dictionary<string, long> dim_params, System.Random random = null) {
         var result = new TensorInfo();
         var dims = value.Type.TensorType.Shape.Dim;
 
@@ -137,12 +137,13 @@ public class TensorInfo {
             }
         }
 
+        //CHECK Are extra dimensions (>4) problematic?  Probably, if they happen
         result.scalars = CreateScalars(result.d);
-        for (var x = 0; x < result.d[0]; x++) {
-            for (var y = 0; y < result.d[1]; y++) {
-                for (var z = 0; z < result.d[2]; z++) {
-                    for (var w = 0; w < result.d[3]; w++) {
-                        result.scalars[x,y,z,w] = ScalarInfo.InputActivation(result.layer, random);
+        for (var x = 0; x < result.GetDim(0); x++) {
+            for (var y = 0; y < result.GetDim(1); y++) {
+                for (var z = 0; z < result.GetDim(2); z++) {
+                    for (var w = 0; w < result.GetDim(3); w++) {
+                        result.scalars[x,y,z,w] = ScalarInfo.InputActivation(result.layer, (new[] { x, y, z, w }).Take(result.Rank).ToArray(), positionOffset, random);
                     }
                 }
             }
@@ -224,6 +225,7 @@ public class TensorInfo {
             input_string += $"[{string.Join(",", tensors[input].d)}] ";
         }
 
+        //THINK Do we want to pass position offsets in through each of these?  Add a parameter to THIS function, even?
         if (output_index == 0) {
             if (node.OpType == "Add") {
                 result = fromAdd(node, tensors);
@@ -235,14 +237,55 @@ public class TensorInfo {
                 result = fromConstant(node, tensors);
                 bag.Clear();
             } else if (node.OpType == "Conv") {
+                var autopad = bag.PullString("auto_pad", null);
+                var strides = bag.PullInts("strides", new long[] { 1, 1 });
+                var kernel_shape = bag.PullRequiredInts("kernel_shape");
+                long[] pads;
+                if (autopad == null || "NOTSET".Equals(autopad)) {
+                    pads = bag.PullInts("pads", new long[] { 0, 0, 0, 0 });
+                } else {
+                    var x = tensors[node.Input[0]];
+                    pads = new long[] { 0, 0, 0, 0 };
+                    //MISC Frankly, I'm not entirely convinced about ignoring the first two dimensions, here.  But the model data itself even sortof agrees with it, so whatever.
+                    for (int d = 0; d < 2; d++) {
+                        var output_shape_i = (int)Math.Ceiling(x.d[2+d] * 1f / strides[d]); // As per documentation
+                        // output_shape_i = (input_dims[d] - kernel_shape[d] + pads[d] + pads[2 + d]) / strides[d] + 1;
+                        // output_shape_i - 1 = (input_dims[d] - kernel_shape[d] + pads[d] + pads[2 + d]) / strides[d];
+                        // (output_shape_i - 1)*strides[d] = input_dims[d] - kernel_shape[d] + pads[d] + pads[2 + d];
+                        // (output_shape_i - 1)*strides[d] - input_dims[d] + kernel_shape[d] =  + pads[d] + pads[2 + d];
+                        var padding = (output_shape_i - 1) * strides[d] - x.d[2+d] + kernel_shape[d];
+                        if (padding % 2 == 0) {
+                            // Even
+                            pads[d] = padding / 2;
+                            pads[d+2] = padding / 2;
+                        } else {
+                            switch (autopad) {
+                                case "SAME_UPPER":
+                                    pads[d] = (padding / 2);
+                                    pads[d+2] = (padding / 2)+1;
+                                    break;
+                                case "SAME_LOWER":
+                                    pads[d] = (padding / 2)+1;
+                                    pads[d+2] = (padding / 2);
+                                    break;
+                                case "VALID":
+                                    Debug.LogError($"Docs don't explain what to do with VALID");
+                                    break;
+                                default:
+                                    Debug.LogError($"Unhandled auto_pad {autopad}");
+                                    break;
+                            }
+                        }
+                    }
+                }
                 result = FromConv(
                     node,
                     tensors,
                     bag.PullInt("group", 1),
-                    bag.PullRequiredInts("kernel_shape"),
-                    bag.PullInts("pads", new long[]{0,0,0,0}),
-                    bag.PullInts("strides", new long[]{1,1}),
-                    bag.PullInts("dilations", new long[]{0,0}),
+                    kernel_shape,
+                    pads,
+                    strides,
+                    bag.PullInts("dilations", new long[] { 0, 0 }),
                     random,
                     layer
                 );
@@ -265,6 +308,8 @@ public class TensorInfo {
                 result = fromShape(node, tensors);
             } else if (node.OpType == "Unsqueeze") {
                 result = fromUnsqueeze(node, tensors, bag.PullRequiredInts("axes"));
+            } else if (node.OpType == "Sigmoid") {
+                result = FromSigmoid(node, tensors, layer, random);
             }
         }
 
@@ -331,7 +376,9 @@ public class TensorInfo {
                                         if (input_y >= 0 && input_y < input_dims[0] && input_x >= 0 && input_x < input_dims[1]) {
                                             var xscal = x.scalars[instance, g * w.d[1] + input_channel, input_y, input_x];
                                             var wscal = w.scalars[output_channel, input_channel, kernel_y, kernel_x];
-                                            var product = ScalarInfo.MulFloats(layer, random, xscal, wscal);
+                                            //CHECK I didn't really think too hard about these layerPosition values, not sure if they make sense
+                                            //MISC I've messed with the layer positions to make this fake layer separate; it's a bit magic-number, though
+                                            var product = ScalarInfo.MulFloats(layer, new[] { instance, output_channel, output_y, output_x, input_channel, kernel_y, kernel_x }, new Vector3(-0.05f, 0f, 0f), random, xscal, wscal);
                                             hidden.Add(product);
                                             list_to_sum.Add(product);
                                             opcount += 1;
@@ -345,7 +392,7 @@ public class TensorInfo {
                             if (b != null) {
                                 list_to_sum.Add(b.scalars[output_channel,0,0,0]);
                             }
-                            var sum = ScalarInfo.SumFloats(layer, random, list_to_sum);
+                            var sum = ScalarInfo.SumFloats(layer, new[] { instance, output_channel, output_y, output_x }, Vector3.zero,  random, list_to_sum);
                             result.scalars[instance, output_channel, output_y, output_x] = sum;
                         }
                     }
@@ -384,7 +431,32 @@ public class TensorInfo {
                 for (var y = 0; y < result.GetDim(1); y++) {
                     for (var z = 0; z < result.GetDim(2); z++) {
                         for (var w = 0; w < result.GetDim(3); w++) {
-                            result.scalars[x,y,z,w] = ScalarInfo.ClipFloat(layer, random, input.scalars[x,y,z,w]);
+                            result.scalars[x,y,z,w] = ScalarInfo.ClipFloat(layer, (new[] { x, y, z, w }).Take(result.Rank).ToArray(), Vector3.zero, random, input.scalars[x,y,z,w]);
+                        }
+                    }
+                }
+            }
+        }
+
+        return result;
+    }
+
+    public static TensorInfo FromSigmoid(NodeProto node, Dictionary<string, TensorInfo> tensors, int layer, System.Random random) {
+        Debug.Log("Processing sigmoid");
+        var result = new TensorInfo();
+        var input = tensors[node.Input[0]];
+
+        result.d = input.d;
+
+        if (input.scalars != null) {
+            result.scalars = CreateScalars(result.d);
+            for (var x = 0; x < result.GetDim(0); x++) {
+                for (var y = 0; y < result.GetDim(1); y++) {
+                    for (var z = 0; z < result.GetDim(2); z++) {
+                        for (var w = 0; w < result.GetDim(3); w++) {
+                            //RAINY It bugs me that it just appends "1" for dimensions we don't have...and it kinda messes up the rendering.  ...So, the fix I came up with, hopefully it's not too heavy for this loop.
+                            //THINK Consider applying this logic to other places
+                            result.scalars[x, y, z, w] = ScalarInfo.SigmoidFloat(layer, (new[] { x, y, z, w }).Take(result.Rank).ToArray(), Vector3.zero, random, input.scalars[x, y, z, w]);
                         }
                     }
                 }

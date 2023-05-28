@@ -5,16 +5,51 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class OnnxHelper {
-    public static (List<Neuron>, List<Connection>) CreateModelProto(string modelPath, Dictionary<string,long> dim_params) {
+    public static (List<Neuron>, List<Connection>) CreateModelProto(string modelPath, Dictionary<string,long> dim_params, int breakEarly = 1) {
         var model = ModelProto.Parser.ParseFrom(File.OpenRead(modelPath));
         var tensors = new Dictionary<string, TensorInfo>();
         var random = new System.Random();
 
         Debug.Log("ModelProto created");
 
-        // These are the inputs.
+
+        //THINK //SHAME This is kinda stupid, all this code copied out of FromInput, TWICE.
+        // These are the inputs.  Arrange them not to overlap.
+        long dimSum = 0;
         foreach (var input in model.Graph.Input) {
-            tensors[input.Name] = TensorInfo.FromInput(input, dim_params, random);
+            var dims = input.Type.TensorType.Shape.Dim;
+            long maxDim = 0;
+            for (int i = 0; i < dims.Count; i++) {
+                long d = 0;
+                if (dim_params.ContainsKey(dims[i].DimParam)) {
+                    d = dim_params[dims[i].DimParam];
+                } else {
+                    d = dims[i].DimValue;
+                }
+                if (d > maxDim) {
+                    maxDim = d;
+                }
+            }
+            dimSum += maxDim;
+        }
+        float availableSpace = dimSum * 1.5f * ScalarInfo.BF;
+        float xPos = -availableSpace / 2;
+        foreach (var input in model.Graph.Input) {
+            var dims = input.Type.TensorType.Shape.Dim;
+            long maxDim = 0;
+            for (int i = 0; i < dims.Count; i++) {
+                long d = 0;
+                if (dim_params.ContainsKey(dims[i].DimParam)) {
+                    d = dim_params[dims[i].DimParam];
+                } else {
+                    d = dims[i].DimValue;
+                }
+                if (d > maxDim) {
+                    maxDim = d;
+                }
+            }
+            tensors[input.Name] = TensorInfo.FromInput(input, new Vector3(0f, 0f, xPos), dim_params, random);
+            xPos += maxDim * 1.5f * ScalarInfo.BF;
         }
 
         // These are the weights (and maybe some constants).
@@ -42,7 +77,7 @@ public class OnnxHelper {
                 tensors[op.Output[i]] = result;
             }
             opnum++;
-            if (opnum >= 1) {
+            if (opnum >= breakEarly) {
                 Debug.LogError($"Quitting early on opnum {opnum}");
                 break;
             }

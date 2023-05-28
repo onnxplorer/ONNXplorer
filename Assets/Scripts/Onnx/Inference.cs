@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System.Linq;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System;
@@ -7,26 +8,59 @@ using UnityEngine;
 
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
+using System.Text;
 
 public class Inference {
-	Thread thread;
+    Thread thread;
 
-    public (List<Neuron>, List<Connection>) run(Consumer<(List<Neuron>, List<Connection>)> callback) {
+    public (List<Neuron>, List<Connection>) run(Consumer<(List<Neuron>, List<Connection>)> callback, int testCase = 2, int breakEarly = 1) {
         Debug.Log("Start function called");
-        string modelPath = "models/mobilenetv2-10.onnx";
+        string modelPath;
+        DenseTensor<float> tensor;
+        var inputs = new List<NamedOnnxValue>();
+        List<string> labels;
+        switch (testCase) {
+            case -1: {
+                tensor = RandomTensor(new[] { 2, 2 });
+                Debug.Log(PrintTensor(tensor));
+                return (null, null);
+            }
+            case 0: { // mobilenetv2
+                modelPath = "models/mobilenetv2-10.onnx";
+                inputs.Add(NamedOnnxValue.CreateFromTensor<float>("input", CreateTensorFromKitten()));
+                labels = LoadLabels(); //THINK Not sure if this is only for mobilenet or what
+                break;
+            }
+            case 1: { // test_sigmoid
+                modelPath = "models/test_sigmoid.onnx";
+                inputs.Add(NamedOnnxValue.CreateFromTensor<float>("x", RandomTensor(new[] { 3, 4, 5 })));
+                labels = null;
+                break;
+            }
+            case 2: { // test_conv_with_autopad_same
+                modelPath = "models/test_conv_with_autopad_same.onnx";
+                inputs.Add(NamedOnnxValue.CreateFromTensor<float>("x", RandomTensor(new[] { 1, 1, 5, 5 })));
+                inputs.Add(NamedOnnxValue.CreateFromTensor<float>("W", RandomTensor(new[] { 1, 1, 3, 3 })));
+                labels = null;
+                break;
+            }
+            default: {
+                Debug.LogWarning("Unhandled test case number: " + testCase);
+                return (null, null);
+            }
+        }
         var session = new InferenceSession(modelPath);
         Debug.Log("Session created");
-        var labels = LoadLabels();
-        var tensor = CreateTensorFromKitten();
-        var inputs = new List<NamedOnnxValue> {
-                NamedOnnxValue.CreateFromTensor<float>("input", tensor)
-            };
         Debug.Log("Input created");
         using (var results = session.Run(inputs)) {
             Debug.Log("Results created");
             foreach (var result in results) {
                 var t = result.AsTensor<float>().ToDenseTensor();
-                PrintTensor(t, labels);
+                if (labels != null) {
+                    PrintTensor(t, labels);
+                } else {
+                    Debug.Log("result " + result.Name + " : " + PrintTensor(t));
+                }
             }
         }
 
@@ -35,12 +69,12 @@ public class Inference {
 
         if (callback != null) {
             thread = new Thread(new ThreadStart(() => {
-                callback(OnnxHelper.CreateModelProto(modelPath, dim_params));
+                callback(OnnxHelper.CreateModelProto(modelPath, dim_params, breakEarly));
             }));
             thread.Start();
             return (null, null);
         } else {
-            return OnnxHelper.CreateModelProto(modelPath, dim_params);
+            return OnnxHelper.CreateModelProto(modelPath, dim_params, breakEarly);
         }
     }
 
@@ -51,6 +85,23 @@ public class Inference {
             labels.Add(sr.ReadLine());
         }
         return labels;
+    }
+
+    String PrintTensor(DenseTensor<float> tensor) {
+        var dims = tensor.Dimensions;
+        StringBuilder sb = new StringBuilder();
+        sb.Append("[");
+        for (int i = 0; i < dims[0]; i++) {
+            //CHECK reverseStride?
+            if (dims.Length > 1) {
+                var subtensor = new DenseTensor<float>(tensor.Buffer.Slice(i * tensor.Strides[0], tensor.Strides[0]), dims.Slice(1, dims.Length - 1));
+                sb.Append(PrintTensor(subtensor)+(i == dims[0]-1 ? "" : ",\n"));
+            } else {
+                sb.Append(tensor[i]+(i == dims[0]-1 ? "" : ","));
+            }
+        }
+        sb.Append("]");
+        return sb.ToString();
     }
 
     void PrintTensor(DenseTensor<float> tensor, List<string> labels) {
@@ -65,6 +116,29 @@ public class Inference {
             var (value, j) = values[k];
             Debug.Log($"Value: {value}, Index: {labels[j]}");
         }
+    }
+
+    DenseTensor<float> RandomTensor(ReadOnlySpan<int> dimensions) {
+        var tensor = new DenseTensor<float>(dimensions);
+        int N = dimensions.Length;
+        int[] idx = new int[N];
+        int i = N - 1;
+        bool done = false;
+        idx[i] = -1;
+        while (!done) {
+            if (i < 0) {
+                done = true;
+            } else if (idx[i] == dimensions[i] - 1) {
+                idx[i] = 0;
+                i--;
+                continue;
+            } else {
+                idx[i]++;
+                i = N - 1;
+            }
+            tensor[idx] = UnityEngine.Random.Range(0f, 1f);
+        }
+        return tensor;
     }
 
     DenseTensor<float> CreateTensorFromKitten() {
