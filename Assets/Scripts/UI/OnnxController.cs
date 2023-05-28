@@ -13,6 +13,9 @@ public class OnnxController : MonoBehaviour {
     public bool TEST_NET = false;
     public bool TEST_ONNX = false;
 
+    public int TEST_CASE = 2;
+    public int BREAK_ON_LAYER = int.MaxValue;
+
     public Renderer renderer;
 
     private IEnumerator testAddLines() {
@@ -270,7 +273,7 @@ public class OnnxController : MonoBehaviour {
 
         if (TEST_ONNX) {
             t.push("onnx");
-            var inf = new Inference().run(null, 2, int.MaxValue);
+            var inf = new Inference().run(null, TEST_CASE, BREAK_ON_LAYER);
             t.log("got result: " + inf);
 
             Network net = new Network();

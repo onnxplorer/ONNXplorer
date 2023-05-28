@@ -376,7 +376,8 @@ public class TensorInfo {
                                             var xscal = x.scalars[instance, g * w.d[1] + input_channel, input_y, input_x];
                                             var wscal = w.scalars[output_channel, input_channel, kernel_y, kernel_x];
                                             //CHECK I didn't really think too hard about these layerPosition values, not sure if they make sense
-                                            var product = ScalarInfo.MulFloats(layer, new[] { instance, output_channel, output_y, output_x, input_channel, kernel_y, kernel_x }, random, xscal, wscal);
+                                            //THINK //SHAME I've messed with the layer positions to make this fake layer separate, but it relies on the BASIS being as it is, and is quite brittle and hacky
+                                            var product = ScalarInfo.MulFloats(layer, new[] { instance, output_channel, output_y, output_x, input_channel-6, kernel_y+2, kernel_x+2 }, random, xscal, wscal);
                                             hidden.Add(product);
                                             list_to_sum.Add(product);
                                             opcount += 1;
