@@ -74,27 +74,16 @@ public class Inference {
                         Debug.Log("result " + result.Name + " : " + PrintTensor(t));
                     }
                 }
+            }            
+
+            long totalCoordCount = 0;
+            var coordArrays = Layout.GetCoordArrays(usefulInfo, results);
+
+            foreach (var coordArray in coordArrays) {
+                totalCoordCount += coordArray.Length;
             }
-            long totalCount = 0;
-            foreach (var result in results) {
-                if (result.ValueType == OnnxValueType.ONNX_TYPE_TENSOR) {
-                    var t0 = result.AsTensor<float>();
-                    if (t0 == null) {
-                        Debug.LogError($"Result {result.Name} is null");
-                        continue;
-                    }
-                    var t = t0.ToDenseTensor();
-                    var dims = "";
-                    foreach (var dim in t.Dimensions) {
-                        dims += $"{dim}, ";
-                    }
-                    Debug.Log($"Result {result.Name} has shape {dims} length {t.Length}");
-                    totalCount += t.Length;
-                } else {
-                    Debug.Log($"Result {result.Name} has type {result.ValueType}");
-                }
-            }
-            Debug.Log($"Total count: {totalCount}");
+
+            Debug.Log($"Total coord count: {totalCoordCount}");
         }
 
         if (usefulInfo == null) { //DUMMY Deal with if it is
