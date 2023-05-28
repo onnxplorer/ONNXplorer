@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Onnx;
 using UnityEngine;
 
@@ -7,7 +8,7 @@ public class ScalarInfo {
     long constInt;
     double constFloat;
     Neuron neuron;
-    Connection[] connections;
+    List<Connection> connections;
 
     public Neuron GetNeuron {
         get {
@@ -15,7 +16,7 @@ public class ScalarInfo {
         }
     }
 
-    public Connection[] GetConnections {
+    public List<Connection> GetConnections {
         get {
             return connections;
         }
@@ -87,11 +88,12 @@ public class ScalarInfo {
         }
         var result = Activation(layer, random);
         result.op = ScalarOp.AddFloat;
-        if (a.neuron != null && b.neuron != null) {
-            result.connections = new Connection[] {
-                new Connection(a.neuron, result.neuron),
-                new Connection(b.neuron, result.neuron)
-            };
+        result.connections = new List<Connection>();
+        if (a.neuron != null) {
+            result.connections.Add(new Connection(a.neuron, result.neuron));
+        }
+        if (b.neuron != null) {
+            result.connections.Add(new Connection(b.neuron, result.neuron));
         }
         return result;
     }
@@ -102,11 +104,22 @@ public class ScalarInfo {
         }
         var result = Activation(layer, random);
         result.op = ScalarOp.MulFloat;
-        if (a.neuron != null && b.neuron != null) {
-            result.connections = new Connection[] {
-                new Connection(a.neuron, result.neuron),
-                new Connection(b.neuron, result.neuron)
-            };
+        result.connections = new List<Connection>();
+        if (a.neuron != null) {
+            result.connections.Add(new Connection(a.neuron, result.neuron));
+        }
+        if (b.neuron != null) {
+            result.connections.Add(new Connection(b.neuron, result.neuron));
+        }
+        return result;
+    }
+
+    public static ScalarInfo ClipFloat(int layer, System.Random random, ScalarInfo a) {
+        var result = Activation(layer, random);
+        result.op = ScalarOp.ClipFloat;
+        result.connections = new List<Connection>();
+        if (a.neuron != null) {
+            result.connections.Add(new Connection(a.neuron, result.neuron));
         }
         return result;
     }

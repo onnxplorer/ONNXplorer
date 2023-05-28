@@ -216,7 +216,7 @@ public class TensorInfo {
             if (node.OpType == "Add") {
                 result = fromAdd(node, tensors);
             } else if (node.OpType == "Clip") {
-                result = fromClip(node, tensors, bag.PullFloat("max", 3.402823e+38d), bag.PullFloat("min", -3.402823e+38d));
+                result = FromClip(node, tensors, bag.PullFloat("max", 3.402823e+38d), bag.PullFloat("min", -3.402823e+38d), layer, random);
             } else if (node.OpType == "Concat") {
                 result = fromConcat(node, tensors, bag.PullInt("axis", 0));
             } else if (node.OpType == "Constant") {
@@ -291,6 +291,13 @@ public class TensorInfo {
             Debug.LogError($"Unexpected kernel size: {string.Join(",", kernel_shape)} vs {string.Join(",", w.d)}");
         }
 
+        if (output_c != w.d[0]) {
+            Debug.LogError($"Unexpected output channel count: {output_c} vs {w.d[0]}");
+        }
+        if (c != w.d[1] * group) {
+            Debug.LogError($"Unexpected input channel count: {c} vs {w.d[1]}, group = {group}");
+        }
+
         result.d = new long[]{n, output_c, output_dims[0], output_dims[1]};
         Debug.Log($"Group: {group}, kernel_shape: {string.Join(",", kernel_shape)}, pads: {string.Join(",", pads)}, strides: {string.Join(",", strides)}");
 
@@ -299,16 +306,19 @@ public class TensorInfo {
             result.scalars = new ScalarInfo[result.d[0], result.d[1], result.d[2], result.d[3]];
             for (int instance = 0; instance < n; instance++) {
                 for (int output_channel = 0; output_channel < output_c; output_channel++) {
+                    var g = output_channel / (w.d[0] / group);
                     for (int output_y = 0; output_y < output_dims[0]; output_y++) {
                         for (int output_x = 0; output_x < output_dims[1]; output_x++) {
                             var sum = ScalarInfo.FromFloat(0);
-                            for (int input_channel = 0; input_channel < c; input_channel++) {
+                            for (int input_channel = 0; input_channel < w.d[1]; input_channel++) {
                                 for (int kernel_y = 0; kernel_y < kernel_shape[0]; kernel_y++) {
                                     for (int kernel_x = 0; kernel_x < kernel_shape[1]; kernel_x++) {
                                         var input_y = output_y * strides[0] + kernel_y - pads[0];
                                         var input_x = output_x * strides[1] + kernel_x - pads[2];
                                         if (input_y >= 0 && input_y < input_dims[0] && input_x >= 0 && input_x < input_dims[1]) {
-                                            var product = ScalarInfo.MulFloats(layer, random, x.scalars[instance, input_channel, input_y, input_x], w.scalars[output_channel, input_channel, kernel_y, kernel_x]);
+                                            var xscal = x.scalars[instance, g * w.d[1] + input_channel, input_y, input_x];
+                                            var wscal = w.scalars[output_channel, input_channel, kernel_y, kernel_x];
+                                            var product = ScalarInfo.MulFloats(layer, random, xscal, wscal);
                                             sum = ScalarInfo.AddFloats(layer, random, sum, product);
                                             opcount += 1;
                                             if (opcount % 1000000 == 0) {
@@ -331,7 +341,7 @@ public class TensorInfo {
         return result;
     }
 
-    public static TensorInfo fromClip(NodeProto node, Dictionary<string, TensorInfo> tensors, double max, double min) {
+    public static TensorInfo FromClip(NodeProto node, Dictionary<string, TensorInfo> tensors, double max, double min, int layer, System.Random random) {
         Debug.Log("Processing clip");
         var result = new TensorInfo();
         var input = tensors[node.Input[0]];
@@ -351,6 +361,20 @@ public class TensorInfo {
         }*/
 
         result.d = input.d;
+
+        if (input.scalars != null) {
+            result.scalars = CreateScalars(result.d);
+            for (var x = 0; x < result.GetDim(0); x++) {
+                for (var y = 0; y < result.GetDim(1); y++) {
+                    for (var z = 0; z < result.GetDim(2); z++) {
+                        for (var w = 0; w < result.GetDim(3); w++) {
+                            result.scalars[x,y,z,w] = ScalarInfo.ClipFloat(layer, random, input.scalars[x,y,z,w]);
+                        }
+                    }
+                }
+            }
+        }
+
         return result;
     }
 
