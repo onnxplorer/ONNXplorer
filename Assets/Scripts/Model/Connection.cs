@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-class Connection {
+public class Connection {
     //NOTE See `Neuron` for comments common to both classes
 
     public LineRef line;
