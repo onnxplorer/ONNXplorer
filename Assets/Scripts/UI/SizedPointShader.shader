@@ -29,7 +29,7 @@ Shader "Custom/SizedPointShader"
             struct v2f
             {
                 float4 vertex : SV_POSITION;
-                float size : POINT_SIZE;
+                float size : PSIZE;
                 fixed4 color : COLOR;
             };
 
