@@ -13,7 +13,7 @@ using System.Text;
 public class Inference {
     Thread thread;
 
-    public (List<Neuron>, List<Connection>) run(Consumer<(List<Neuron>, List<Connection>)> callback, int testCase = 2, int breakEarly = 1) {
+    public (List<Neuron>, List<Connection>) run(Consumer<(List<Neuron>, List<Connection>)> callback, int testCase = -2, int breakEarly = 1) {
         Debug.Log("Start function called");
         string modelPath;
         DenseTensor<float> tensor;
