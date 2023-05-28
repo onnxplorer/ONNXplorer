@@ -137,11 +137,24 @@ public class TensorInfo {
             }
         }
 
+        long getDim(long[] d, int idx) {
+            if (idx >= d.Length) {
+                return 1;
+            } else {
+                return d[idx];
+            }
+        };
+
+        //THINK Are extra dimensions problematic?
+        long[] ds = new[] { getDim(result.d, 0), getDim(result.d, 1), getDim(result.d, 2), getDim(result.d, 3) };
+        if (result.d.Length > 4) {
+            throw new Exception("Too many dims!  " + result.d.Length + " > 4");
+        }
         result.scalars = CreateScalars(result.d);
-        for (var x = 0; x < result.d[0]; x++) {
-            for (var y = 0; y < result.d[1]; y++) {
-                for (var z = 0; z < result.d[2]; z++) {
-                    for (var w = 0; w < result.d[3]; w++) {
+        for (var x = 0; x < ds[0]; x++) {
+            for (var y = 0; y < ds[1]; y++) {
+                for (var z = 0; z < ds[2]; z++) {
+                    for (var w = 0; w < ds[3]; w++) {
                         result.scalars[x,y,z,w] = ScalarInfo.InputActivation(result.layer, random);
                     }
                 }
