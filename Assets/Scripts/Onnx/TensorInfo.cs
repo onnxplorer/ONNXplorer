@@ -143,7 +143,7 @@ public class TensorInfo {
             for (var y = 0; y < result.GetDim(1); y++) {
                 for (var z = 0; z < result.GetDim(2); z++) {
                     for (var w = 0; w < result.GetDim(3); w++) {
-                        result.scalars[x,y,z,w] = ScalarInfo.InputActivation(result.layer, new[] { x, y, z, w }, random);
+                        result.scalars[x,y,z,w] = ScalarInfo.InputActivation(result.layer, (new[] { x, y, z, w }).Take(result.Rank).ToArray(), random);
                     }
                 }
             }
@@ -388,7 +388,7 @@ public class TensorInfo {
                 for (var y = 0; y < result.GetDim(1); y++) {
                     for (var z = 0; z < result.GetDim(2); z++) {
                         for (var w = 0; w < result.GetDim(3); w++) {
-                            result.scalars[x,y,z,w] = ScalarInfo.ClipFloat(layer, new[] { x, y, z, w }, random, input.scalars[x,y,z,w]);
+                            result.scalars[x,y,z,w] = ScalarInfo.ClipFloat(layer, (new[] { x, y, z, w }).Take(result.Rank).ToArray(), random, input.scalars[x,y,z,w]);
                         }
                     }
                 }

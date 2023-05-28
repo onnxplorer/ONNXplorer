@@ -64,6 +64,7 @@ public class ScalarInfo {
         return result;
     }
 
+    public static readonly float[] OFFSET = { 0.5f, 0.5f, 0.5f };
     public const float BF = 0.01f; // Sorta depends on how wide the tensors are...
     public static readonly float[,] BASIS = { //RAINY There's probably a nice math library we've already imported that would make the multiplication more efficient or something
         { 0f, 0f, BF },
@@ -78,9 +79,9 @@ public class ScalarInfo {
 
     //THINK The indices are generally given as ints, but technically the dimensions are longs.  OTOH, a difference would mean having a tensor over like, 4 billion items long.  It's at least somewhat unlikely.
     public static ScalarInfo Activation(int layer, int[] layerPosition, System.Random random) {
-        float x = layer;
-        float y = 0;
-        float z = 0;
+        float x = layer + OFFSET[0];
+        float y = OFFSET[1];
+        float z = OFFSET[2];
         int j = 0;
         for (int i = layerPosition.Length - 1; i >= 0; i--) {
             x += BASIS[j, 0] * layerPosition[i];
