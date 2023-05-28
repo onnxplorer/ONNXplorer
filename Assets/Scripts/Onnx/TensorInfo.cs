@@ -241,9 +241,9 @@ public class TensorInfo {
                     tensors,
                     bag.PullInt("group", 1),
                     bag.PullRequiredInts("kernel_shape"),
-                    bag.PullInts("pads", new long[]{0,0,0,0}),
-                    bag.PullInts("strides", new long[]{1,1}),
-                    bag.PullInts("dilations", new long[]{0,0}),
+                    bag.PullInts("pads", new long[] { 0, 0, 0, 0 }),
+                    bag.PullInts("strides", new long[] { 1, 1 }),
+                    bag.PullInts("dilations", new long[] { 0, 0 }),
                     random,
                     layer
                 );
@@ -266,6 +266,8 @@ public class TensorInfo {
                 result = fromShape(node, tensors);
             } else if (node.OpType == "Unsqueeze") {
                 result = fromUnsqueeze(node, tensors, bag.PullRequiredInts("axes"));
+            } else if (node.OpType == "Sigmoid") {
+                result = FromSigmoid(node, tensors, layer, random);
             }
         }
 
@@ -386,6 +388,29 @@ public class TensorInfo {
                     for (var z = 0; z < result.GetDim(2); z++) {
                         for (var w = 0; w < result.GetDim(3); w++) {
                             result.scalars[x,y,z,w] = ScalarInfo.ClipFloat(layer, random, input.scalars[x,y,z,w]);
+                        }
+                    }
+                }
+            }
+        }
+
+        return result;
+    }
+
+    public static TensorInfo FromSigmoid(NodeProto node, Dictionary<string, TensorInfo> tensors, int layer, System.Random random) {
+        Debug.Log("Processing sigmoid");
+        var result = new TensorInfo();
+        var input = tensors[node.Input[0]];
+
+        result.d = input.d;
+
+        if (input.scalars != null) {
+            result.scalars = CreateScalars(result.d);
+            for (var x = 0; x < result.GetDim(0); x++) {
+                for (var y = 0; y < result.GetDim(1); y++) {
+                    for (var z = 0; z < result.GetDim(2); z++) {
+                        for (var w = 0; w < result.GetDim(3); w++) {
+                            result.scalars[x, y, z, w] = ScalarInfo.SigmoidFloat(layer, random, input.scalars[x, y, z, w]);
                         }
                     }
                 }

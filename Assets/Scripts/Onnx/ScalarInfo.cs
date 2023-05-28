@@ -138,4 +138,14 @@ public class ScalarInfo {
         }
         return result;
     }
+
+    public static ScalarInfo SigmoidFloat(int layer, System.Random random, ScalarInfo a) {
+        var result = Activation(layer, random);
+        result.op = ScalarOp.SigmoidFloat;
+        result.connections = new List<Connection>();
+        if (a.neuron != null) {
+            result.connections.Add(new Connection(a.neuron, result.neuron));
+        }
+        return result;
+    }
 }

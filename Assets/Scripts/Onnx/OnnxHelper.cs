@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class OnnxHelper {
-    public static (List<Neuron>, List<Connection>) CreateModelProto(string modelPath, Dictionary<string,long> dim_params) {
+    public static (List<Neuron>, List<Connection>) CreateModelProto(string modelPath, Dictionary<string,long> dim_params, int breakEarly = 1) {
         var model = ModelProto.Parser.ParseFrom(File.OpenRead(modelPath));
         var tensors = new Dictionary<string, TensorInfo>();
         var random = new System.Random();
@@ -42,7 +42,7 @@ public class OnnxHelper {
                 tensors[op.Output[i]] = result;
             }
             opnum++;
-            if (opnum >= 1) {
+            if (opnum >= breakEarly) {
                 Debug.LogError($"Quitting early on opnum {opnum}");
                 break;
             }

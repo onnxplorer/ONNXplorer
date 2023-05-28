@@ -13,7 +13,7 @@ using System.Text;
 public class Inference {
     Thread thread;
 
-    public (List<Neuron>, List<Connection>) run(Consumer<(List<Neuron>, List<Connection>)> callback) {
+    public (List<Neuron>, List<Connection>) run(Consumer<(List<Neuron>, List<Connection>)> callback, int breakEarly = 1) {
         Debug.Log("Start function called");
         string modelPath;
         DenseTensor<float> tensor;
@@ -62,12 +62,12 @@ public class Inference {
 
         if (callback != null) {
             thread = new Thread(new ThreadStart(() => {
-                callback(OnnxHelper.CreateModelProto(modelPath, dim_params));
+                callback(OnnxHelper.CreateModelProto(modelPath, dim_params, breakEarly));
             }));
             thread.Start();
             return (null, null);
         } else {
-            return OnnxHelper.CreateModelProto(modelPath, dim_params);
+            return OnnxHelper.CreateModelProto(modelPath, dim_params, breakEarly);
         }
     }
 
