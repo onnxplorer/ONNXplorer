@@ -135,7 +135,7 @@ public class OnnxController : MonoBehaviour {
             cs[2*i+0] = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
             cs[2*i+1] = new Color(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
         }
-        Runnable flagDirty = renderer.addWholeMesh(vs, cs);
+        Runnable flagDirty = renderer.addWholePointMesh(vs, cs);
         t.log(N + " lines added");
         while (true) {
             yield return new WaitForSeconds(10f);
@@ -339,10 +339,10 @@ public class OnnxController : MonoBehaviour {
                 t.log("got result: " + pair);
 
                 foreach (CoordArrays ns in nss) {
-                    renderer.addWholeMesh(ns.Positions, ns.Colors);
+                    renderer.addWholePointMesh(ns.Positions, ns.Colors);
                 }
                 foreach (CoordArrays cs in css) {
-                    renderer.addWholeMesh(cs.Positions, cs.Colors);
+                    renderer.addWholeLineMesh(cs.Positions, cs.Colors);
                 }
                 //DUMMY Flashlight doesn't have this net
             }, -2, 1);
