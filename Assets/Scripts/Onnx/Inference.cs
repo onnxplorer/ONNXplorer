@@ -92,7 +92,7 @@ public class Inference {
             if (usefulInfo != null) {
                 long totalNeuronCoordCount = 0;
                 long totalConnectionCoordCount = 0;
-                var (neuronCoords, connectionCoords) = Layout.GetCoordArrays(usefulInfo, results, 1000, 1000);
+                var (neuronCoords, connectionCoords) = Layout.GetCoordArrays(usefulInfo, results, 10000, 1000);
 
                 foreach (var coordArray in neuronCoords) {
                     totalNeuronCoordCount += coordArray.Length;
