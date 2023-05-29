@@ -43,6 +43,14 @@ public class Layout {
         }
     }
 
+    static Color WeightColor(float weight) {
+        if (weight > 0) {
+            return new Color(0, weight, 0);
+        } else {
+            return new Color(-weight, -weight, 0);
+        }
+    }
+
     static Vector3 TensorPosition(int placeInLayer)
     {
         return new Vector3(0, placeInLayer, 0);
@@ -63,13 +71,18 @@ public class Layout {
 
             dimensions[result.Name] = t0.Dimensions.ToArray();
 
-            var opname = "";
-            info.OpNames.TryGetValue(result.Name, out opname);
-
             var t = t0.ToDenseTensor();
             tensorDict[result.Name] = t;
 
             var cutoff = NeuronCutoff(t, maxNeuronsPerTensor);
+
+            if (info.Constants.Contains(result.Name)) {
+                Debug.Log($"Constant Tensor Name = {result.Name}, Dimensions = {string.Join(", ", dimensions[result.Name])}");
+                continue;
+            }
+
+            var opname = "";
+            info.OpNames.TryGetValue(result.Name, out opname);
 
             var coordArrays = new CoordArrays(Math.Min(t0.Length, maxNeuronsPerTensor));
 
@@ -146,6 +159,28 @@ public class Layout {
                     AddElementwiseConnectionArrays(info.OpInputs[result.Name][1]);
                 } else if (optype == "Clip" && numInputs == 1) {
                     AddElementwiseConnectionArrays(info.OpInputs[result.Name][0]);
+                } else if (optype == "Conv" && numInputs >= 2) {
+                    var input = info.OpInputs[result.Name][0];
+                    var wInput = info.OpInputs[result.Name][1];
+                    if (dimensions.ContainsKey(input) && dimensions.ContainsKey(wInput)) {
+                        var inputDims = dimensions[input];
+                        var outputDims = dimensions[result.Name];
+                        var inputT = tensorDict[input];
+                        var weightT = tensorDict[wInput];
+                        var outputT = tensorDict[result.Name];
+
+                        var connectionArrays = CreateConvConnnections(
+                            inputDims,
+                            outputDims,
+                            info.LayerNums[input],
+                            info.LayerNums[result.Name],
+                            info.PlaceInLayer[input],
+                            info.PlaceInLayer[result.Name],
+                            maxConnectionsPerTensor,
+                            inputT, weightT, outputT, cutoff, info.ConvParams[result.Name]
+                        );
+                        connectionArrayList.Add(connectionArrays);
+                    }
                 } else {
                     Debug.LogWarning($"Skipping connections for {result.Name} {optype} from {string.Join(", ", info.OpInputs[result.Name])}");
                 }
@@ -170,10 +205,84 @@ public class Layout {
         return cutoff;
     }
 
+    static CoordArrays CreateConvConnnections(
+        int[] inputDims, int[] outputDims, int layer0, int layer1, int posInLayer0, int posInLayer1, int maxConnectionsPerTensor, DenseTensor<float> t0, DenseTensor<float> w, DenseTensor<float> t1, float cutoff, ConvParams conv)
+    {
+        var indices = new int[4];
+        var pqueue = new PQueue<(Vector3,Vector3,Color),float>();
+        for (var i = 0; i < t1.Length; i++) {
+            if (Math.Abs(t1[indices]) <= cutoff) {
+                indices[0]++;
+                for (var j = 0; j < 3; j++) {
+                    if (indices[j] < outputDims[j]) {
+                        break;
+                    }
+                    indices[j] = 0;
+                    indices[j + 1]++;
+                }
+                continue;
+            }
+
+            var position1 = Position(layer1, indices, TensorPosition(posInLayer1));
+
+            int numOutputChannels = outputDims[1] / (int)conv.Group;
+            int whichGroup = indices[1] / numOutputChannels;
+            int whichOutputChannel = indices[1] % numOutputChannels;
+
+            int numInputChannels = inputDims[1] / (int)conv.Group;
+            for (var whichInputChannel = 0; whichInputChannel < numInputChannels; whichInputChannel++) {
+                for (var kx = 0; kx < conv.KernelShape[0]; kx++) {
+                    for (var ky = 0; ky < conv.KernelShape[1]; ky++) {
+                        var indices0 = new int[]{
+                            indices[0],
+                            whichInputChannel + whichGroup * numInputChannels,
+                            indices[2] + kx * (int)conv.Strides[0] - (int)conv.Pads[0],
+                            indices[3] + ky * (int)conv.Strides[1] - (int)conv.Pads[2],
+                        };
+                        if (indices0[2] < 0 || indices0[2] >= inputDims[2] || indices0[3] < 0 || indices0[3] >= inputDims[3]) {
+                            // Padded.
+                            continue;
+                        }
+                        if (t0[indices0] <= cutoff) {
+                            continue;
+                        }
+                        var position0 = Position(layer0, indices0, TensorPosition(posInLayer0));
+                        var weight = w[whichOutputChannel, whichInputChannel, kx, ky];
+                        var color = WeightColor(weight);
+                        pqueue.Enqueue((position0, position1, color), -Math.Abs(weight));
+                        if (pqueue.Count > maxConnectionsPerTensor) {
+                            pqueue.Dequeue();
+                        }
+                    }
+                }
+            }
+
+            indices[0]++;
+            for (var j = 0; j < 3; j++) {
+                if (indices[j] < outputDims[j]) {
+                    break;
+                }
+                indices[j] = 0;
+                indices[j + 1]++;
+            }
+        }
+
+        var coordI = 0;
+        var coordArrays = new CoordArrays(pqueue.Count * 2);
+        while (pqueue.Count > 0) {
+            var (position0, position1, color) = pqueue.Dequeue();
+            coordArrays.Positions[2*coordI] = position0;
+            coordArrays.Colors[2*coordI] = color;
+            coordArrays.Positions[2*coordI+1] = position1;
+            coordArrays.Colors[2*coordI+1] = color;
+            coordI++;
+        }
+        coordArrays.Trim(2 * coordI);
+        return coordArrays;
+    }
+
     static CoordArrays CreateElementwiseConnections(int[] inputDims, int[] outputDims, int layer0, int layer1, int posInLayer0, int posInLayer1, int maxConnectionsPerTensor, System.Random random, DenseTensor<float> t0, DenseTensor<float> t1, float cutoff)
     {
-        var coordArrays = new CoordArrays(maxConnectionsPerTensor * 2);
- 
         // Display an error and skip if the tensors are different shapes
         if (!inputDims.SequenceEqual(outputDims)) {
             Debug.LogError($"Elementwise: Tensor has shape {string.Join(",",outputDims)} but other tensor has shape {string.Join(",",inputDims)}");
@@ -181,8 +290,8 @@ public class Layout {
         }
 
         var indices = new int[outputDims.Length];
-        var coordI = 0;
-        for (var i = 0; i < t0.Length; i++) {
+        var pqueue = new PQueue<(Vector3,Vector3,Color),float>();
+        for (var i = 0; i < t1.Length; i++) {
             if (Math.Abs(t0[indices]) <= cutoff || Math.Abs(t1[indices]) <= cutoff) {
                 indices[0]++;
                 for (var j = 0; j < outputDims.Length - 1; j++) {
@@ -194,19 +303,14 @@ public class Layout {
                 }
                 continue;
             }
-            if (coordI >= maxConnectionsPerTensor) {
-                Debug.LogWarning("Too many connections");
-                break;
+            var (pos0,pos1) = CreateConnectionCoords(layer0, posInLayer0, indices, layer1, posInLayer1, indices);
+            var color = new Color((float)random.NextDouble(), (float)random.NextDouble(), (float)random.NextDouble());
+            var pseudo_weight = (float)random.NextDouble();
+            
+            pqueue.Enqueue((pos0,pos1,color), pseudo_weight);
+            if (pqueue.Count > maxConnectionsPerTensor) {
+                pqueue.Dequeue();
             }
-            var positions = CreateConnectionCoords(layer0, posInLayer0, indices, layer1, posInLayer1, indices);
-            var color0 = new Color((float)random.NextDouble(), (float)random.NextDouble(), (float)random.NextDouble());
-            var color1 = new Color((float)random.NextDouble(), (float)random.NextDouble(), (float)random.NextDouble());
-
-            coordArrays.Positions[2*coordI] = positions.Item1;
-            coordArrays.Positions[2*coordI+1] = positions.Item2;
-            coordArrays.Colors[2*coordI] = color0;
-            coordArrays.Colors[2*coordI+1] = color1;
-            coordI++;
 
             indices[0]++;
             for (var j = 0; j < outputDims.Length - 1; j++) {
@@ -216,6 +320,17 @@ public class Layout {
                 indices[j] = 0;
                 indices[j + 1]++;
             }
+        }
+
+        var coordI = 0;
+        var coordArrays = new CoordArrays(pqueue.Count * 2);
+        while (pqueue.Count > 0) {
+            var (position0, position1, color) = pqueue.Dequeue();
+            coordArrays.Positions[2*coordI] = position0;
+            coordArrays.Colors[2*coordI] = color;
+            coordArrays.Positions[2*coordI+1] = position1;
+            coordArrays.Colors[2*coordI+1] = color;
+            coordI++;
         }
         coordArrays.Trim(2 * coordI);
         return coordArrays;

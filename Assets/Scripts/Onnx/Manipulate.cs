@@ -15,6 +15,14 @@ public class Manipulate {
             existingOutputs.Add(o.Name);
             info.OriginalOutputs[i] = o.Name;
         }
+        foreach (var t in m.Graph.Initializer) {
+            info.Constants.Add(t.Name);
+            if (!existingOutputs.Contains(t.Name)) {
+                var valueInfo = new ValueInfoProto();
+                valueInfo.Name = t.Name;
+                m.Graph.Output.Add(valueInfo);
+            }
+        }
         foreach (var n in m.Graph.Node) {
             int layer = 0;
             foreach (var input in n.Input) {
@@ -26,6 +34,10 @@ public class Manipulate {
             info.OpTypes[n.Output[0]] = n.OpType;
             info.OpInputs[n.Output[0]] = n.Input.ToArray();
             info.OpNames[n.Output[0]] = n.Name;
+
+            if (n.OpType == "Conv") {
+                info.ConvParams[n.Output[0]] = ConvParams.FromProto(n);
+            }
 
             if (!layerTensorCounts.ContainsKey(layer)) {
                 layerTensorCounts[layer] = 0;
@@ -48,6 +60,8 @@ public class Manipulate {
         info.OpTypes = new Dictionary<string, string>();
         info.OpInputs = new Dictionary<string, string[]>();
         info.OpNames = new Dictionary<string, string>();
+        info.Constants = new HashSet<string>();
+        info.ConvParams = new Dictionary<string, ConvParams>();
 
         var model = ModelProto.Parser.ParseFrom(System.IO.File.OpenRead(modelPath));
         AddActivationsToOutputs(model, info);
